@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { API_URL } from '../App';
 import { QRCodeSVG } from 'qrcode.react'; // Standard package from qrcode.react
-import { ArrowLeft, Send, CheckCircle, Smartphone, CreditCard, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Send, CheckCircle, Smartphone, CreditCard, ChevronRight, Copy } from 'lucide-react';
 
 export default function Predict() {
   const { matchId } = useParams();
@@ -25,6 +25,17 @@ export default function Predict() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyUPI = async () => {
+    try {
+      await navigator.clipboard.writeText(payeeUPI);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy: ', err);
+    }
+  };
 
   useEffect(() => {
     fetchMatchDetails();
@@ -333,8 +344,19 @@ export default function Predict() {
 
             <div className="payment-instructions">
               To verify and submit your prediction, please pay <strong>₹{entryAmount}</strong> entry fee to:
-              <div style={{ margin: '0.5rem 0' }}>
-                <span className="upi-id-highlight">{payeeUPI}</span>
+              <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0' }}>
+                <div className="upi-copy-wrapper">
+                  <span className="upi-id-highlight" style={{ background: 'none', padding: 0 }}>{payeeUPI}</span>
+                  <button
+                    type="button"
+                    onClick={handleCopyUPI}
+                    className="btn btn-secondary"
+                    style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem', borderRadius: '4px', gap: '0.25rem', display: 'inline-flex', alignItems: 'center' }}
+                  >
+                    <Copy size={12} />
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -359,7 +381,8 @@ export default function Predict() {
                 </div>
               </div>
 
-              {/* Mobile Intent link */}
+              {/* Mobile Intent link - Commented out to prevent routing to WhatsApp on mobile devices */}
+              {/*
               <div className="upi-intent-buttons">
                 <p style={{ fontSize: '0.85rem', margin: '0.5rem 0', color: 'var(--text-muted)' }}>
                   Or tap below to pay directly using installed UPI App on mobile:
@@ -368,6 +391,7 @@ export default function Predict() {
                   <Smartphone size={18} /> Pay with GPay / PhonePe / Paytm
                 </a>
               </div>
+              */}
             </div>
 
             <div className="form-group" style={{ marginTop: '1.5rem' }}>
