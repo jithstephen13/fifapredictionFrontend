@@ -181,7 +181,7 @@ export default function Home() {
 
                       <div className="match-footer">
                         <div className="prize-pool">
-                          Prize: <span className="prize-amount">₹{match.prizeAmount}</span> for {match.winnerCount} people
+                          Prize: <span className="prize-amount">3X Payout</span> for winners
                         </div>
                         <Link to={`/predict/${match._id}`} className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
                           Predict <ArrowRight size={16} />
