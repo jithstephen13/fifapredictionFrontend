@@ -91,7 +91,7 @@ export default function Home() {
     <div>
       <div className="title-section">
         <h1>Predict & Win Real Cash</h1>
-        <p>Predict scores of upcoming FIFA matches. 2 correct predictions win ₹100 each!</p>
+        <p>Predict scores of upcoming FIFA matches. Correct predictions win triple (3x) their entry fee!</p>
         
         <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button className="btn btn-secondary" onClick={() => setShowTracker(true)}>
@@ -200,12 +200,11 @@ export default function Home() {
       <div className="rules-container">
         <h2><Trophy size={22} /> How to Play & Win</h2>
         <ul className="rules-list">
-          <li>Select any upcoming match and submit your score prediction (e.g. 2 - 1).</li>
-          <li>Pay an entry fee of <strong>₹20</strong> using Google Pay, PhonePe, or Paytm during submission.</li>
+          <li>Choose and pay an entry fee between <strong>₹20 and ₹100</strong> using Google Pay, PhonePe, or Paytm.</li>
           <li>Enter your <strong>12-digit UPI Transaction ID (UTR / Ref No)</strong> to complete your submission.</li>
           <li>Predictions close exactly when the match starts.</li>
           <li>Once the match concludes, the administrator will verify payments and update scores.</li>
-          <li>For each match, we will select <strong>2 people</strong> who predicted the exact score to win <strong>₹100 each</strong> directly to their UPI ID!</li>
+          <li>For each match, we will select <strong>2 people</strong> who predicted the exact score to win <strong>triple (3x) their entry amount</strong>!</li>
         </ul>
       </div>
 
@@ -263,6 +262,9 @@ export default function Home() {
                       <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
                         Your Pick: {pred.predictedScoreA} - {pred.predictedScoreB}
                       </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                        Entry: ₹{pred.entryAmount || 20} (Potential Payout: ₹{(pred.entryAmount || 20) * 3})
+                      </div>
                       {pred.matchId && pred.matchId.status === 'completed' && (
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                           Final Result: {pred.matchId.result.scoreA} - {pred.matchId.result.scoreB}
@@ -272,7 +274,7 @@ export default function Home() {
                     
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
                       {pred.isWinner ? (
-                        <span className="badge badge-winner">🏆 Winner (₹{pred.matchId ? pred.matchId.prizeAmount : 100})</span>
+                        <span className="badge badge-winner">🏆 Winner (₹{(pred.entryAmount || 20) * 3})</span>
                       ) : pred.paymentStatus === 'verified' ? (
                         <span className="badge badge-verified">Verified</span>
                       ) : pred.paymentStatus === 'rejected' ? (
@@ -335,7 +337,7 @@ export default function Home() {
                     </div>
                     
                     <span className="badge badge-winner" style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', animation: 'none' }}>
-                      Won ₹{winner.matchId.prizeAmount}
+                      Won ₹{winner.prizeAmount}
                     </span>
                   </div>
                 </div>

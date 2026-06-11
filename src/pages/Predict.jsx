@@ -19,6 +19,7 @@ export default function Predict() {
   const [upiId, setUpiId] = useState('');
   const [predictedScoreA, setPredictedScoreA] = useState('0');
   const [predictedScoreB, setPredictedScoreB] = useState('0');
+  const [entryAmount, setEntryAmount] = useState(20);
   const [transactionId, setTransactionId] = useState('');
 
   const [submitting, setSubmitting] = useState(false);
@@ -92,6 +93,7 @@ export default function Predict() {
         upiId: upiId.trim(),
         predictedScoreA: parseInt(predictedScoreA),
         predictedScoreB: parseInt(predictedScoreB),
+        entryAmount: entryAmount,
         transactionId: transactionId.trim()
       };
 
@@ -165,7 +167,7 @@ export default function Predict() {
   // tn = Transaction Note
   const payeeUPI = 'gjfifapredictor@axl';
   const payeeName = 'FIFA Match Prediction';
-  const amount = '20';
+  const amount = entryAmount.toString();
   const note = `Prediction_${match.teamA}_vs_${match.teamB}`.replace(/\s+/g, '_');
   const upiUrl = `upi://pay?pa=${payeeUPI}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
 
@@ -210,7 +212,7 @@ export default function Predict() {
           </div>
           <div style={{ textAlign: 'right' }}>
             <span className="badge badge-pending" style={{ color: 'var(--accent)', borderColor: 'var(--accent)', background: 'transparent' }}>
-              Entry: ₹20
+              Entry: ₹{entryAmount}
             </span>
           </div>
         </div>
@@ -279,7 +281,7 @@ export default function Predict() {
             </div>
 
             <div className="form-group">
-              <label>UPI ID (to send ₹100 prize if you win!)</label>
+              <label>UPI ID (to send ₹{entryAmount * 3} prize if you win!)</label>
               <input
                 type="text"
                 placeholder="e.g. name@upi or phone@paytm"
@@ -288,6 +290,31 @@ export default function Predict() {
                 className="form-input"
                 required
               />
+            </div>
+
+            <div className="form-group">
+              <label style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                <span>Choose Entry Amount (₹20 - ₹100)</span>
+                <strong style={{ color: 'var(--accent)' }}>₹{entryAmount}</strong>
+              </label>
+              <input
+                type="range"
+                min="20"
+                max="100"
+                step="10"
+                value={entryAmount}
+                onChange={(e) => setEntryAmount(parseInt(e.target.value))}
+                style={{ width: '100%', margin: '0.5rem 0', accentColor: 'var(--primary)' }}
+              />
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                <span>Min: ₹20</span>
+                <span>Max: ₹100</span>
+              </div>
+              <div style={{ marginTop: '0.75rem', background: 'rgba(0, 230, 118, 0.08)', border: '1px solid rgba(0, 230, 118, 0.25)', padding: '0.75rem', borderRadius: '8px', textAlign: 'center' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--success)' }}>
+                  Potential Payout: 3x = ₹{entryAmount * 3} if correct! 🏆
+                </span>
+              </div>
             </div>
 
             {submitError && (
@@ -301,11 +328,11 @@ export default function Predict() {
         ) : (
           <form onSubmit={handleSubmitPrediction}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--secondary)' }}>
-              2. Complete UPI Payment (₹20)
+              2. Complete UPI Payment (₹{entryAmount})
             </h3>
 
             <div className="payment-instructions">
-              To verify and submit your prediction, please pay <strong>₹20</strong> entry fee to:
+              To verify and submit your prediction, please pay <strong>₹{entryAmount}</strong> entry fee to:
               <div style={{ margin: '0.5rem 0' }}>
                 <span className="upi-id-highlight">{payeeUPI}</span>
               </div>

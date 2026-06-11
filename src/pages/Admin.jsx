@@ -653,6 +653,9 @@ export default function Admin() {
                         <strong style={{ fontSize: '1.1rem', color: 'var(--secondary)' }}>
                           {pred.predictedScoreA} - {pred.predictedScoreB}
                         </strong>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                          Entry: ₹{pred.entryAmount || 20} (Payout: ₹{(pred.entryAmount || 20) * 3})
+                        </div>
                       </td>
                       <td><span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{pred.upiId}</span></td>
                       <td><span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{pred.transactionId}</span></td>
@@ -799,7 +802,7 @@ export default function Admin() {
                               {pred.userName} ({pred.phoneNumber})
                             </div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              UPI: {pred.upiId} | UTR: {pred.transactionId}
+                              UPI: {pred.upiId} | UTR: {pred.transactionId} | Paid: ₹{pred.entryAmount || 20} (Payout: ₹{(pred.entryAmount || 20) * 3})
                             </div>
                           </div>
                         </div>
