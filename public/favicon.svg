@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <circle cx="50" cy="50" r="46" fill="#FFFFFF" stroke="#000000" stroke-width="4"/>
+  <!-- Center pentagon -->
+  <polygon points="50,36 63,46 58,61 42,61 37,46" fill="#000000"/>
+  <!-- Seam lines -->
+  <line x1="50" y1="36" x2="50" y2="4" stroke="#000000" stroke-width="4"/>
+  <line x1="63" y1="46" x2="94" y2="35" stroke="#000000" stroke-width="4"/>
+  <line x1="58" y1="61" x2="77" y2="92" stroke="#000000" stroke-width="4"/>
+  <line x1="42" y1="61" x2="23" y2="92" stroke="#000000" stroke-width="4"/>
+  <line x1="37" y1="46" x2="6" y2="35" stroke="#000000" stroke-width="4"/>
+  <!-- Top pentagon -->
+  <polygon points="50,4 35,14 39,4 61,4 65,14" fill="#000000"/>
+  <!-- Top-right pentagon segment -->
+  <polygon points="94,35 83,23 96,12 96,48" fill="#000000"/>
+  <!-- Bottom-right pentagon segment -->
+  <polygon points="77,92 89,80 96,90 68,96" fill="#000000"/>
+  <!-- Bottom-left pentagon segment -->
+  <polygon points="23,92 11,80 4,90 32,96" fill="#000000"/>
+  <!-- Top-left pentagon segment -->
+  <polygon points="6,35 17,23 4,12 4,48" fill="#000000"/>
+</svg>
