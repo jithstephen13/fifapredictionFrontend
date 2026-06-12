@@ -43,6 +43,19 @@ export default function Admin() {
   const [selectedWinnerIds, setSelectedWinnerIds] = useState([]);
   const [savingWinners, setSavingWinners] = useState(false);
 
+  // Modal predictions for score entry real-time view
+  const [modalPredictions, setModalPredictions] = useState([]);
+  const [modalPredictionsLoading, setModalPredictionsLoading] = useState(false);
+
+  // Completed match winner viewer states
+  const [selectedCompletedMatchId, setSelectedCompletedMatchId] = useState('');
+  const [completedMatchPredictions, setCompletedMatchPredictions] = useState([]);
+  const [completedMatchPredictionsLoading, setCompletedMatchPredictionsLoading] = useState(false);
+
+  // Filters for payment verification board
+  const [selectedFilterMatchId, setSelectedFilterMatchId] = useState('');
+  const [selectedScoreCombination, setSelectedScoreCombination] = useState('');
+
   useEffect(() => {
     if (token) {
       verifyAdminToken();
@@ -52,9 +65,38 @@ export default function Admin() {
   useEffect(() => {
     if (isLoggedIn) {
       fetchMatches();
-      fetchPredictions();
     }
   }, [isLoggedIn, activeTab]);
+
+  useEffect(() => {
+    if (isLoggedIn && activeTab === 'payments') {
+      fetchPredictions();
+    }
+  }, [paymentFilter, selectedFilterMatchId, isLoggedIn, activeTab]);
+
+  useEffect(() => {
+    if (selectedCompletedMatchId && isLoggedIn) {
+      const fetchCompletedMatchPredictions = async () => {
+        try {
+          setCompletedMatchPredictionsLoading(true);
+          const res = await fetch(`${API_URL}/predictions/admin/all?matchId=${selectedCompletedMatchId}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setCompletedMatchPredictions(data);
+          }
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setCompletedMatchPredictionsLoading(false);
+        }
+      };
+      fetchCompletedMatchPredictions();
+    } else {
+      setCompletedMatchPredictions([]);
+    }
+  }, [selectedCompletedMatchId, isLoggedIn, token]);
 
   const verifyAdminToken = async () => {
     try {
@@ -162,10 +204,25 @@ export default function Admin() {
   };
 
   // --- Complete Match Score Modal ---
-  const handleOpenCompleteModal = (match) => {
+  const handleOpenCompleteModal = async (match) => {
     setSelectedMatch(match);
     setCompleteScoreA('0');
     setCompleteScoreB('0');
+    setModalPredictions([]);
+    setModalPredictionsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/predictions/admin/all?matchId=${match._id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setModalPredictions(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch modal predictions:', err);
+    } finally {
+      setModalPredictionsLoading(false);
+    }
   };
 
   const handleCompleteMatch = async (e) => {
@@ -275,6 +332,7 @@ export default function Admin() {
       setPredictionsLoading(true);
       let query = `?paymentStatus=${paymentFilter}`;
       if (searchQuery) query += `&search=${encodeURIComponent(searchQuery)}`;
+      if (selectedFilterMatchId) query += `&matchId=${selectedFilterMatchId}`;
 
       const res = await fetch(`${API_URL}/predictions/admin/all${query}`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -287,6 +345,35 @@ export default function Admin() {
       setPredictionsLoading(false);
     }
   };
+
+  // Get unique score combinations from predictions for the current selected match
+  const getScoreCombinations = () => {
+    const counts = {};
+    predictions.forEach((pred) => {
+      const key = `${pred.predictedScoreA}-${pred.predictedScoreB}`;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+
+    return Object.keys(counts).map((key) => {
+      const [scoreA, scoreB] = key.split('-');
+      return {
+        key,
+        label: `${scoreA} - ${scoreB} (${counts[key]} participants)`,
+        scoreA: parseInt(scoreA),
+        scoreB: parseInt(scoreB)
+      };
+    }).sort((a, b) => b.scoreA - a.scoreA || b.scoreB - a.scoreB);
+  };
+
+  const scoreCombinations = selectedFilterMatchId ? getScoreCombinations() : [];
+
+  const filteredPredictions = predictions.filter((pred) => {
+    if (selectedScoreCombination) {
+      const [scoreA, scoreB] = selectedScoreCombination.split('-');
+      return pred.predictedScoreA === parseInt(scoreA) && pred.predictedScoreB === parseInt(scoreB);
+    }
+    return true;
+  });
 
   const handleUpdatePayment = async (id, status) => {
     try {
@@ -550,6 +637,96 @@ export default function Admin() {
               </div>
             )}
           </div>
+
+          {/* Correct Predictions Viewer */}
+          <div className="card">
+            <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent)' }}>
+              <Award size={20} /> Correct Predictions Viewer
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+              Select a completed match below to inspect all participants who predicted the exact score.
+            </p>
+            
+            <div style={{ marginBottom: '1.5rem', maxWidth: '400px' }}>
+              <select
+                value={selectedCompletedMatchId}
+                onChange={(e) => setSelectedCompletedMatchId(e.target.value)}
+                className="form-input"
+              >
+                <option value="">-- Select a completed match --</option>
+                {matches
+                  .filter((m) => m.status === 'completed')
+                  .map((m) => (
+                    <option key={m._id} value={m._id}>
+                      {m.teamALogo} {m.teamA} vs {m.teamBLogo} {m.teamB} (Result: {m.result.scoreA} - {m.result.scoreB})
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {selectedCompletedMatchId && (() => {
+              const selectedMatchInfo = matches.find((m) => m._id === selectedCompletedMatchId);
+              if (!selectedMatchInfo) return null;
+              
+              const correctPreds = completedMatchPredictions.filter(
+                (p) =>
+                  p.predictedScoreA === selectedMatchInfo.result.scoreA &&
+                  p.predictedScoreB === selectedMatchInfo.result.scoreB
+              );
+
+              return (
+                <div>
+                  <h4 style={{ marginBottom: '1rem', fontSize: '1rem', fontWeight: 600 }}>
+                    Correct Predictions ({correctPreds.length} users)
+                  </h4>
+                  
+                  {completedMatchPredictionsLoading ? (
+                    <div style={{ color: 'var(--text-muted)' }}>Loading predictions...</div>
+                  ) : correctPreds.length === 0 ? (
+                    <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '1rem 0' }}>
+                      No participants predicted the exact score ({selectedMatchInfo.result.scoreA} - {selectedMatchInfo.result.scoreB}) for this match.
+                    </div>
+                  ) : (
+                    <div className="admin-table-container">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th>User / Phone</th>
+                            <th>UPI ID</th>
+                            <th>UTR / Ref ID</th>
+                            <th>Payment Status</th>
+                            <th>Is Winner Picked</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {correctPreds.map((pred) => (
+                            <tr key={pred._id}>
+                              <td>
+                                <strong>{pred.userName}</strong>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pred.phoneNumber}</div>
+                              </td>
+                              <td><span style={{ fontSize: '0.85rem' }}>{pred.upiId}</span></td>
+                              <td><span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{pred.transactionId}</span></td>
+                              <td>
+                                <span className={`badge badge-${pred.paymentStatus}`}>{pred.paymentStatus}</span>
+                              </td>
+                              <td>
+                                {pred.isWinner ? (
+                                  <span className="badge badge-winner">🏆 Winner Selected</span>
+                                ) : (
+                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
 
@@ -579,6 +756,43 @@ export default function Admin() {
                 className="form-input"
               />
             </div>
+            
+            {/* Match Filter Dropdown */}
+            <div style={{ minWidth: '200px' }}>
+              <select
+                value={selectedFilterMatchId}
+                onChange={(e) => {
+                  setSelectedFilterMatchId(e.target.value);
+                  setSelectedScoreCombination(''); // Reset combination filter when match changes
+                }}
+                className="form-input"
+              >
+                <option value="">All Matches</option>
+                {matches.map((match) => (
+                  <option key={match._id} value={match._id}>
+                    {match.teamALogo} {match.teamA} vs {match.teamBLogo} {match.teamB}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Score Combination Filter Dropdown */}
+            {selectedFilterMatchId && (
+              <div style={{ minWidth: '200px' }}>
+                <select
+                  value={selectedScoreCombination}
+                  onChange={(e) => setSelectedScoreCombination(e.target.value)}
+                  className="form-input"
+                >
+                  <option value="">All Score Combinations</option>
+                  {scoreCombinations.map((comb) => (
+                    <option key={comb.key} value={comb.key}>
+                      {comb.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
@@ -615,7 +829,7 @@ export default function Admin() {
 
           {predictionsLoading ? (
             <div>Loading predictions...</div>
-          ) : predictions.length === 0 ? (
+          ) : filteredPredictions.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No predictions match this filter.</div>
           ) : (
             <div className="admin-table-container">
@@ -631,7 +845,7 @@ export default function Admin() {
                   </tr>
                 </thead>
                 <tbody>
-                  {predictions.map((pred) => (
+                  {filteredPredictions.map((pred) => (
                     <tr key={pred._id}>
                       <td>
                         {pred.matchId ? (
@@ -738,6 +952,67 @@ export default function Admin() {
                     required
                   />
                 </div>
+              </div>
+
+              {/* Real-time predictions matching the entered score */}
+              <div style={{ margin: '1.5rem 0', borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--secondary)' }}>
+                  <Award size={16} /> Predictions for {completeScoreA || 0} - {completeScoreB || 0}
+                </h4>
+                
+                {modalPredictionsLoading ? (
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Loading predictions...</div>
+                ) : (
+                  (() => {
+                    const matchingPreds = modalPredictions.filter(
+                      p => p.predictedScoreA === parseInt(completeScoreA || 0) && 
+                           p.predictedScoreB === parseInt(completeScoreB || 0)
+                    );
+                    
+                    if (matchingPreds.length === 0) {
+                      return (
+                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '0.5rem 0' }}>
+                          No participants predicted this score combination.
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.5rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                          {matchingPreds.map(pred => (
+                            <div 
+                              key={pred._id} 
+                              style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center',
+                                padding: '0.5rem 0.75rem',
+                                background: 'rgba(255,255,255,0.02)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: '6px',
+                                fontSize: '0.8rem'
+                              }}
+                            >
+                              <div>
+                                <span style={{ fontWeight: 600 }}>{pred.userName}</span>
+                                <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>({pred.phoneNumber})</span>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                                  UPI: {pred.upiId} | UTR: {pred.transactionId}
+                                </div>
+                              </div>
+                              <div>
+                                <span className={`badge badge-${pred.paymentStatus}`} style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem' }}>
+                                  {pred.paymentStatus}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
               </div>
 
               <div style={{ display: 'flex', gap: '1rem' }}>

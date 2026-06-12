@@ -7,7 +7,7 @@ export default function Home() {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // Tracking Modal State
   const [showTracker, setShowTracker] = useState(false);
   const [trackerPhone, setTrackerPhone] = useState('');
@@ -64,7 +64,7 @@ export default function Home() {
   const handleTrackPredictions = async (e) => {
     e.preventDefault();
     if (!trackerPhone) return;
-    
+
     try {
       setTrackingLoading(true);
       setTrackingError(null);
@@ -87,12 +87,27 @@ export default function Home() {
     };
   };
 
+  const getWinnersByMatch = () => {
+    const grouped = {};
+    winners.forEach((winner) => {
+      const matchIdVal = winner.matchId._id || `${winner.matchId.teamA}-vs-${winner.matchId.teamB}`;
+      if (!grouped[matchIdVal]) {
+        grouped[matchIdVal] = {
+          match: winner.matchId,
+          winners: []
+        };
+      }
+      grouped[matchIdVal].winners.push(winner);
+    });
+    return Object.values(grouped);
+  };
+
   return (
     <div>
       <div className="title-section">
         <h1>Predict & Win Real Cash</h1>
         <p>Predict scores of upcoming FIFA matches. Correct predictions win triple (3x) their entry fee!</p>
-        
+
         <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button className="btn btn-secondary" onClick={() => setShowTracker(true)}>
             <Search size={18} /> Track My Predictions
@@ -169,9 +184,9 @@ export default function Home() {
                             <span className="team-logo">{match.teamALogo || '🏳️'}</span>
                             <span className="team-name" title={match.teamA}>{match.teamA}</span>
                           </div>
-                          
+
                           <span className="vs-badge">VS</span>
-                          
+
                           <div className="team">
                             <span className="team-logo">{match.teamBLogo || '🏳️'}</span>
                             <span className="team-name" title={match.teamB}>{match.teamB}</span>
@@ -204,7 +219,7 @@ export default function Home() {
           <li>Enter your <strong>12-digit UPI Transaction ID (UTR / Ref No)</strong> to complete your submission.</li>
           <li>Predictions close exactly when the match starts.</li>
           <li>Once the match concludes, the administrator will verify payments and update scores.</li>
-          <li>For each match, we will select <strong>2 people</strong> who predicted the exact score to win <strong>triple (3x) their entry amount</strong>!</li>
+          <li>For each match, we will select <strong>people</strong> who predicted the exact score to win <strong>triple (3x) their entry amount</strong>!</li>
         </ul>
       </div>
 
@@ -216,11 +231,11 @@ export default function Home() {
             <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Search size={20} /> Track My Predictions
             </h3>
-            
+
             <form onSubmit={handleTrackPredictions} className="search-predictions-bar">
-              <input 
-                type="tel" 
-                placeholder="Enter Your Phone Number" 
+              <input
+                type="tel"
+                placeholder="Enter Your Phone Number"
                 value={trackerPhone}
                 onChange={(e) => setTrackerPhone(e.target.value)}
                 className="form-input"
@@ -245,7 +260,7 @@ export default function Home() {
                   No predictions found for this phone number.
                 </div>
               )}
-              
+
               {userPredictions.map((pred) => (
                 <div key={pred._id} style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '1rem', background: 'rgba(0,0,0,0.15)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
@@ -256,7 +271,7 @@ export default function Home() {
                       {new Date(pred.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  
+
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div>
                       <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
@@ -271,7 +286,7 @@ export default function Home() {
                         </div>
                       )}
                     </div>
-                    
+
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
                       {pred.isWinner ? (
                         <span className="badge badge-winner">🏆 Winner (₹{(pred.entryAmount || 20) * 3})</span>
@@ -299,7 +314,7 @@ export default function Home() {
             <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent)' }}>
               🏆 FIFA Predictor Winners
             </h3>
-            
+
             {winnersError && (
               <div className="alert alert-error" style={{ fontSize: '0.9rem' }}>{winnersError}</div>
             )}
@@ -314,31 +329,62 @@ export default function Home() {
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxHeight: '400px', overflowY: 'auto' }}>
-              {winners.map((winner) => (
-                <div key={winner._id} style={{ border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1rem', background: 'rgba(255, 215, 0, 0.03)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
-                    <span style={{ fontWeight: 700, color: 'var(--accent)' }}>
-                      🎉 WINNER: {winner.userName} ({winner.phoneNumber})
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxHeight: '400px', overflowY: 'auto' }}>
+              {getWinnersByMatch().map((group) => (
+                <div
+                  key={group.match._id || `${group.match.teamA}-vs-${group.match.teamB}`}
+                  style={{
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '12px',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {/* Match Header Group */}
+                  <div style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    padding: '0.75rem 1rem',
+                    borderBottom: '1px solid var(--border-color)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--secondary)' }}>
+                      ⚽ {group.match.teamALogo} {group.match.teamA} vs {group.match.teamBLogo} {group.match.teamB}
                     </span>
-                    <span style={{ color: 'var(--text-muted)' }}>
-                      {new Date(winner.createdAt).toLocaleDateString()}
+                    <span className="badge badge-verified" style={{ fontSize: '0.7rem', textTransform: 'none' }}>
+                      Result: {group.match.result.scoreA} - {group.match.result.scoreB}
                     </span>
                   </div>
-                  
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>
-                        {winner.matchId.teamALogo} {winner.matchId.teamA} vs {winner.matchId.teamBLogo} {winner.matchId.teamB}
+
+                  {/* List of winners for this match */}
+                  <div style={{ padding: '0.75rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {group.winners.map((winner) => (
+                      <div
+                        key={winner._id}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '0.5rem',
+                          background: 'rgba(255, 215, 0, 0.03)',
+                          border: '1px solid rgba(255, 215, 0, 0.1)',
+                          borderRadius: '8px'
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 700, color: 'var(--accent)', fontSize: '0.85rem' }}>
+                            🎉 {winner.userName} ({winner.phoneNumber})
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                            Prediction: {winner.predictedScoreA} - {winner.predictedScoreB}
+                          </div>
+                        </div>
+                        <span className="badge badge-winner" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', animation: 'none' }}>
+                          Won ₹{winner.prizeAmount}
+                        </span>
                       </div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                        Prediction: {winner.predictedScoreA} - {winner.predictedScoreB} | Final Score: {winner.matchId.result.scoreA} - {winner.matchId.result.scoreB}
-                      </div>
-                    </div>
-                    
-                    <span className="badge badge-winner" style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', animation: 'none' }}>
-                      Won ₹{winner.prizeAmount}
-                    </span>
+                    ))}
                   </div>
                 </div>
               ))}
