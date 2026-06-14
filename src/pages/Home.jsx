@@ -215,11 +215,11 @@ export default function Home() {
       <div className="rules-container">
         <h2><Trophy size={22} /> How to Play & Win</h2>
         <ul className="rules-list">
-          <li>Choose and pay an entry fee between <strong>₹20 and ₹100</strong> using Google Pay, PhonePe, or Paytm.</li>
+          <li>Choose your prediction style: <strong>Predict Winner</strong> (entry ₹20 - ₹100) or <strong>Predict Score</strong> (entry ₹100 - ₹300). Pay the entry fee using Google Pay, PhonePe, or Paytm.</li>
           <li>Enter your <strong>12-digit UPI Transaction ID (UTR / Ref No)</strong> to complete your submission.</li>
           <li>Predictions close exactly when the match starts.</li>
-          <li>Once the match concludes, the administrator will verify payments and update scores.</li>
-          <li>For each match, we will select <strong>people</strong> who predicted the exact score to win <strong>triple (3x) their entry amount</strong>!</li>
+          <li>Once the match concludes, the administrator will verify payments and update results.</li>
+          <li>Correctly predicting the winning team/draw pays out <strong>double (2x)</strong> your entry amount, and correctly predicting the exact score pays out <strong>triple (3x)</strong>!</li>
         </ul>
       </div>
 
@@ -273,31 +273,42 @@ export default function Home() {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
-                        Your Pick: {pred.predictedScoreA} - {pred.predictedScoreB}
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                        Entry: ₹{pred.entryAmount || 20} (Potential Payout: ₹{(pred.entryAmount || 20) * 3})
-                      </div>
-                      {pred.matchId && pred.matchId.status === 'completed' && (
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                          Final Result: {pred.matchId.result.scoreA} - {pred.matchId.result.scoreB}
-                        </div>
-                      )}
-                    </div>
+                    {(() => {
+                      const isWinningTeam = pred.predictionType === 'winningTeam';
+                      const multiplier = isWinningTeam ? 2 : 3;
+                      const pickText = isWinningTeam
+                        ? (pred.predictedWinner === 'teamA' ? `${pred.matchId?.teamA || 'Team A'} to Win` : pred.predictedWinner === 'teamB' ? `${pred.matchId?.teamB || 'Team B'} to Win` : 'Draw')
+                        : `${pred.predictedScoreA} - ${pred.predictedScoreB}`;
+                      return (
+                        <>
+                          <div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 700 }}>
+                              Your Pick: {pickText}
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                              Entry: ₹{pred.entryAmount || 20} (Potential Payout: ₹{(pred.entryAmount || 20) * multiplier})
+                            </div>
+                            {pred.matchId && pred.matchId.status === 'completed' && (
+                              <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                Final Result: {pred.matchId.result.scoreA} - {pred.matchId.result.scoreB}
+                              </div>
+                            )}
+                          </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
-                      {pred.isWinner ? (
-                        <span className="badge badge-winner">🏆 Winner (₹{(pred.entryAmount || 20) * 3})</span>
-                      ) : pred.paymentStatus === 'verified' ? (
-                        <span className="badge badge-verified">Verified</span>
-                      ) : pred.paymentStatus === 'rejected' ? (
-                        <span className="badge badge-rejected">Rejected</span>
-                      ) : (
-                        <span className="badge badge-pending">Pending Verification</span>
-                      )}
-                    </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                            {pred.isWinner ? (
+                              <span className="badge badge-winner">🏆 Winner (₹{(pred.entryAmount || 20) * multiplier})</span>
+                            ) : pred.paymentStatus === 'verified' ? (
+                              <span className="badge badge-verified">Verified</span>
+                            ) : pred.paymentStatus === 'rejected' ? (
+                              <span className="badge badge-rejected">Rejected</span>
+                            ) : (
+                              <span className="badge badge-pending">Pending Verification</span>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -377,7 +388,7 @@ export default function Home() {
                             🎉 {winner.userName} ({winner.phoneNumber})
                           </div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                            Prediction: {winner.predictedScoreA} - {winner.predictedScoreB}
+                            Prediction: {winner.predictionType === 'winningTeam' ? (winner.predictedWinner === 'teamA' ? `${group.match.teamA} to Win` : winner.predictedWinner === 'teamB' ? `${group.match.teamB} to Win` : 'Draw') : `${winner.predictedScoreA} - ${winner.predictedScoreB}`} ({winner.predictionType === 'winningTeam' ? 'Winner Predict' : 'Score Predict'})
                           </div>
                         </div>
                         <span className="badge badge-winner" style={{ fontSize: '0.7rem', padding: '0.2rem 0.5rem', animation: 'none' }}>

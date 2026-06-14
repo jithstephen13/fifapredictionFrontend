@@ -17,10 +17,13 @@ export default function Predict() {
   const [userName, setUserName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [upiId, setUpiId] = useState('');
+  const [predictionType, setPredictionType] = useState('winningTeam');
+  const [predictedWinner, setPredictedWinner] = useState('');
   const [predictedScoreA, setPredictedScoreA] = useState('0');
   const [predictedScoreB, setPredictedScoreB] = useState('0');
   const [entryAmount, setEntryAmount] = useState(20);
   const [transactionId, setTransactionId] = useState('');
+  const [showPaymentAlert, setShowPaymentAlert] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -73,11 +76,27 @@ export default function Predict() {
 
   const handleNextStep = (e) => {
     e.preventDefault();
-    if (!userName || !phoneNumber || !upiId || predictedScoreA === '' || predictedScoreB === '') {
-      setSubmitError('Please fill in all prediction details');
+    if (!userName || !phoneNumber || !upiId) {
+      setSubmitError('Please fill in your details');
       return;
     }
+    if (predictionType === 'winningTeam') {
+      if (!predictedWinner) {
+        setSubmitError('Please select a team or draw prediction');
+        return;
+      }
+    } else {
+      if (predictedScoreA === '' || predictedScoreB === '') {
+        setSubmitError('Please enter predicted scores');
+        return;
+      }
+    }
     setSubmitError(null);
+    setShowPaymentAlert(true);
+  };
+
+  const handleConfirmAlert = () => {
+    setShowPaymentAlert(false);
     setStep(2);
   };
 
@@ -102,11 +121,17 @@ export default function Predict() {
         userName: userName.trim(),
         phoneNumber: phoneNumber.trim(),
         upiId: upiId.trim(),
-        predictedScoreA: parseInt(predictedScoreA),
-        predictedScoreB: parseInt(predictedScoreB),
+        predictionType,
         entryAmount: entryAmount,
         transactionId: transactionId.trim()
       };
+
+      if (predictionType === 'winningTeam') {
+        payload.predictedWinner = predictedWinner;
+      } else {
+        payload.predictedScoreA = parseInt(predictedScoreA);
+        payload.predictedScoreB = parseInt(predictedScoreB);
+      }
 
       const res = await fetch(`${API_URL}/predictions`, {
         method: 'POST',
@@ -189,7 +214,7 @@ export default function Predict() {
           <CheckCircle size={64} color="var(--success)" />
           <h2>Prediction Submitted!</h2>
           <p style={{ color: 'var(--text-muted)', maxWidth: '400px', lineHeight: '1.6' }}>
-            Thank you, <strong>{userName}</strong>. Your prediction of <strong>{predictedScoreA} - {predictedScoreB}</strong> has been submitted.
+            Thank you, <strong>{userName}</strong>. Your prediction of <strong>{predictionType === 'winningTeam' ? (predictedWinner === 'teamA' ? `${match.teamA} to Win` : predictedWinner === 'teamB' ? `${match.teamB} to Win` : 'Draw') : `${predictedScoreA} - ${predictedScoreB}`}</strong> has been submitted.
           </p>
           <div className="badge badge-pending" style={{ fontSize: '0.9rem', padding: '0.5rem 1.25rem' }}>
             Payment Status: Pending Verification
@@ -231,40 +256,158 @@ export default function Predict() {
         {/* Form Steps */}
         {step === 1 ? (
           <form onSubmit={handleNextStep}>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--secondary)' }}>
-              1. Predict Score & Enter Details
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', color: 'var(--secondary)' }}>
+              1. Predict Outcome & Enter Details
             </h3>
 
-            {/* Score Inputs */}
-            <div className="predict-score-input-container">
-              <div className="score-team-box">
-                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{match.teamA}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
-                  value={predictedScoreA}
-                  onChange={(e) => setPredictedScoreA(e.target.value)}
-                  className="score-input"
-                  required
-                />
-              </div>
-
-              <span className="score-divider">-</span>
-
-              <div className="score-team-box">
-                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{match.teamB}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
-                  value={predictedScoreB}
-                  onChange={(e) => setPredictedScoreB(e.target.value)}
-                  className="score-input"
-                  required
-                />
-              </div>
+            {/* Prediction Type Toggle */}
+            <div className="admin-tabs" style={{ marginBottom: '1.5rem', display: 'flex', width: '100%', gap: '0.25rem', padding: '0.25rem', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+              <button
+                type="button"
+                className={`admin-tab ${predictionType === 'winningTeam' ? 'active' : ''}`}
+                onClick={() => {
+                  setPredictionType('winningTeam');
+                  setEntryAmount(20);
+                  setPredictedWinner('');
+                }}
+                style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  borderBottom: 'none',
+                  borderRadius: '8px',
+                  padding: '0.6rem',
+                  fontSize: '0.9rem',
+                  background: predictionType === 'winningTeam' ? 'var(--primary)' : 'transparent',
+                  color: predictionType === 'winningTeam' ? 'var(--text-dark)' : 'var(--text-muted)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Predict Winner (2x Payout)
+              </button>
+              <button
+                type="button"
+                className={`admin-tab ${predictionType === 'score' ? 'active' : ''}`}
+                onClick={() => {
+                  setPredictionType('score');
+                  setEntryAmount(100);
+                }}
+                style={{
+                  flex: 1,
+                  textAlign: 'center',
+                  borderBottom: 'none',
+                  borderRadius: '8px',
+                  padding: '0.6rem',
+                  fontSize: '0.9rem',
+                  background: predictionType === 'score' ? 'var(--primary)' : 'transparent',
+                  color: predictionType === 'score' ? 'var(--text-dark)' : 'var(--text-muted)',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                Predict Score (3x Payout)
+              </button>
             </div>
+
+            {/* Conditional Inputs */}
+            {predictionType === 'winningTeam' ? (
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600 }}>Select Match Outcome</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                  <button
+                    type="button"
+                    className={`btn ${predictedWinner === 'teamA' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setPredictedWinner('teamA')}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '1.25rem 0.5rem',
+                      borderRadius: '12px',
+                      gap: '0.5rem',
+                      border: predictedWinner === 'teamA' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                      boxShadow: predictedWinner === 'teamA' ? '0 0 12px rgba(255, 179, 0, 0.2)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span style={{ fontSize: '2rem' }}>{match.teamALogo || '🏳️'}</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{match.teamA} Wins</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`btn ${predictedWinner === 'draw' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setPredictedWinner('draw')}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '1.25rem 0.5rem',
+                      borderRadius: '12px',
+                      gap: '0.5rem',
+                      border: predictedWinner === 'draw' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                      boxShadow: predictedWinner === 'draw' ? '0 0 12px rgba(255, 179, 0, 0.2)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span style={{ fontSize: '2rem' }}>🤝</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700 }}>Draw</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`btn ${predictedWinner === 'teamB' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setPredictedWinner('teamB')}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '1.25rem 0.5rem',
+                      borderRadius: '12px',
+                      gap: '0.5rem',
+                      border: predictedWinner === 'teamB' ? '2px solid var(--primary)' : '1px solid var(--border-color)',
+                      boxShadow: predictedWinner === 'teamB' ? '0 0 12px rgba(255, 179, 0, 0.2)' : 'none',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <span style={{ fontSize: '2rem' }}>{match.teamBLogo || '🏳️'}</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, textAlign: 'center', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{match.teamB} Wins</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Score Inputs */
+              <div className="predict-score-input-container" style={{ marginBottom: '1.5rem' }}>
+                <div className="score-team-box">
+                  <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{match.teamA}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    value={predictedScoreA}
+                    onChange={(e) => setPredictedScoreA(e.target.value)}
+                    className="score-input"
+                    required
+                  />
+                </div>
+
+                <span className="score-divider">-</span>
+
+                <div className="score-team-box">
+                  <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{match.teamB}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    value={predictedScoreB}
+                    onChange={(e) => setPredictedScoreB(e.target.value)}
+                    className="score-input"
+                    required
+                  />
+                </div>
+              </div>
+            )}
 
             {/* User Details */}
             <div className="form-group">
@@ -292,7 +435,7 @@ export default function Predict() {
             </div>
 
             <div className="form-group">
-              <label>UPI ID (to send ₹{entryAmount * 3} prize if you win!)</label>
+              <label>UPI ID (to send ₹{predictionType === 'winningTeam' ? entryAmount * 2 : entryAmount * 3} prize if you win!)</label>
               <input
                 type="text"
                 placeholder="e.g. name@upi or phone@paytm"
@@ -305,25 +448,25 @@ export default function Predict() {
 
             <div className="form-group">
               <label style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                <span>Choose Entry Amount (₹20 - ₹100)</span>
+                <span>Choose Entry Amount ({predictionType === 'winningTeam' ? '₹20 - ₹100' : '₹100 - ₹300'})</span>
                 <strong style={{ color: 'var(--accent)' }}>₹{entryAmount}</strong>
               </label>
               <input
                 type="range"
-                min="20"
-                max="100"
+                min={predictionType === 'winningTeam' ? "20" : "100"}
+                max={predictionType === 'winningTeam' ? "100" : "300"}
                 step="10"
                 value={entryAmount}
                 onChange={(e) => setEntryAmount(parseInt(e.target.value))}
                 style={{ width: '100%', margin: '0.5rem 0', accentColor: 'var(--primary)' }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                <span>Min: ₹20</span>
-                <span>Max: ₹100</span>
+                <span>Min: ₹{predictionType === 'winningTeam' ? '20' : '100'}</span>
+                <span>Max: ₹{predictionType === 'winningTeam' ? '100' : '300'}</span>
               </div>
               <div style={{ marginTop: '0.75rem', background: 'rgba(0, 230, 118, 0.08)', border: '1px solid rgba(0, 230, 118, 0.25)', padding: '0.75rem', borderRadius: '8px', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--success)' }}>
-                  Potential Payout: 3x = ₹{entryAmount * 3} if correct! 🏆
+                  Potential Payout: {predictionType === 'winningTeam' ? '2x' : '3x'} = ₹{predictionType === 'winningTeam' ? entryAmount * 2 : entryAmount * 3} if correct! 🏆
                 </span>
               </div>
             </div>
@@ -437,6 +580,43 @@ export default function Predict() {
           </form>
         )}
       </div>
+
+      {showPaymentAlert && (
+        <div className="modal-overlay" style={{ zIndex: 1000 }}>
+          <div className="modal-content" style={{ maxWidth: '500px', padding: '2rem', textAlign: 'center' }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+            <h3 style={{ marginBottom: '1.5rem', color: 'var(--accent)', fontSize: '1.4rem' }}>
+              Important Notice / പ്രധാന അറിയിപ്പ്
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'left', lineHeight: '1.6', fontSize: '0.95rem' }}>
+              {/* English */}
+              <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.25rem' }}>
+                <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>English:</p>
+                <p style={{ color: 'var(--text-muted)' }}>
+                  After completing the payment, you <strong>must copy the 12-digit UPI Transaction ID / UTR / Reference Number</strong> and enter it on the next page. <strong>Do not forget to do this!</strong>
+                </p>
+              </div>
+
+              {/* Malayalam */}
+              <div>
+                <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>മലയാളം:</p>
+                <p style={{ color: 'var(--text-muted)' }}>
+                  പേയ്‌മെന്റ് വിജയകരമായി പൂർത്തിയാക്കിയ ശേഷം, ദയവായി നിങ്ങളുടെ <strong>12 അക്ക UPI ട്രാൻസാക്ഷൻ ഐഡി / UTR / റഫറൻസ് നമ്പർ കോപ്പി ചെയ്ത്</strong> അടുത്ത പേജിൽ നൽകുക. <strong>ഇത് ചെയ്യാൻ മറക്കരുത്!</strong>
+                </p>
+              </div>
+            </div>
+
+            <button 
+              className="btn btn-primary" 
+              onClick={handleConfirmAlert} 
+              style={{ width: '100%', marginTop: '2rem', height: '48px', fontSize: '1.05rem', fontWeight: 600 }}
+            >
+              I Understand / എനിക്ക് മനസ്സിലായി
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

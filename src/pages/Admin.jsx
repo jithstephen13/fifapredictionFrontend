@@ -274,9 +274,21 @@ export default function Admin() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const allPreds = await res.json();
-      const matchExact = allPreds.filter(
-        p => p.predictedScoreA === match.result.scoreA && p.predictedScoreB === match.result.scoreB
-      );
+      
+      const sA = match.result.scoreA;
+      const sB = match.result.scoreB;
+      let actualWinner;
+      if (sA > sB) actualWinner = 'teamA';
+      else if (sA < sB) actualWinner = 'teamB';
+      else actualWinner = 'draw';
+
+      const matchExact = allPreds.filter(p => {
+        if (p.predictionType === 'winningTeam') {
+          return p.predictedWinner === actualWinner;
+        } else {
+          return p.predictedScoreA === sA && p.predictedScoreB === sB;
+        }
+      });
       setExactPredictions(matchExact);
 
       // Pre-select existing winners
@@ -346,31 +358,45 @@ export default function Admin() {
     }
   };
 
-  // Get unique score combinations from predictions for the current selected match
+  // Get unique prediction combinations from predictions for the current selected match
   const getScoreCombinations = () => {
     const counts = {};
     predictions.forEach((pred) => {
-      const key = `${pred.predictedScoreA}-${pred.predictedScoreB}`;
+      const isWinningTeam = pred.predictionType === 'winningTeam';
+      const key = isWinningTeam
+        ? `winner-${pred.predictedWinner}`
+        : `score-${pred.predictedScoreA}-${pred.predictedScoreB}`;
       counts[key] = (counts[key] || 0) + 1;
     });
 
     return Object.keys(counts).map((key) => {
-      const [scoreA, scoreB] = key.split('-');
+      const isWinningTeam = key.startsWith('winner-');
+      let label = '';
+      if (isWinningTeam) {
+        const winner = key.replace('winner-', '');
+        const match = matches.find(m => m._id === selectedFilterMatchId);
+        const winnerName = winner === 'teamA' ? (match?.teamA || 'Team A') : winner === 'teamB' ? (match?.teamB || 'Team B') : 'Draw';
+        label = `Winner: ${winnerName} (${counts[key]} participants)`;
+      } else {
+        const parts = key.replace('score-', '').split('-');
+        label = `Score: ${parts[0]} - ${parts[1]} (${counts[key]} participants)`;
+      }
       return {
         key,
-        label: `${scoreA} - ${scoreB} (${counts[key]} participants)`,
-        scoreA: parseInt(scoreA),
-        scoreB: parseInt(scoreB)
+        label
       };
-    }).sort((a, b) => b.scoreA - a.scoreA || b.scoreB - a.scoreB);
+    });
   };
 
   const scoreCombinations = selectedFilterMatchId ? getScoreCombinations() : [];
 
   const filteredPredictions = predictions.filter((pred) => {
     if (selectedScoreCombination) {
-      const [scoreA, scoreB] = selectedScoreCombination.split('-');
-      return pred.predictedScoreA === parseInt(scoreA) && pred.predictedScoreB === parseInt(scoreB);
+      const isWinningTeam = pred.predictionType === 'winningTeam';
+      const key = isWinningTeam
+        ? `winner-${pred.predictedWinner}`
+        : `score-${pred.predictedScoreA}-${pred.predictedScoreB}`;
+      return key === selectedScoreCombination;
     }
     return true;
   });
@@ -644,7 +670,7 @@ export default function Admin() {
               <Award size={20} /> Correct Predictions Viewer
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
-              Select a completed match below to inspect all participants who predicted the exact score.
+              Select a completed match below to inspect all participants who predicted correctly.
             </p>
             
             <div style={{ marginBottom: '1.5rem', maxWidth: '400px' }}>
@@ -668,11 +694,20 @@ export default function Admin() {
               const selectedMatchInfo = matches.find((m) => m._id === selectedCompletedMatchId);
               if (!selectedMatchInfo) return null;
               
-              const correctPreds = completedMatchPredictions.filter(
-                (p) =>
-                  p.predictedScoreA === selectedMatchInfo.result.scoreA &&
-                  p.predictedScoreB === selectedMatchInfo.result.scoreB
-              );
+              const sA = selectedMatchInfo.result.scoreA;
+              const sB = selectedMatchInfo.result.scoreB;
+              let actualWinner;
+              if (sA > sB) actualWinner = 'teamA';
+              else if (sA < sB) actualWinner = 'teamB';
+              else actualWinner = 'draw';
+
+              const correctPreds = completedMatchPredictions.filter(p => {
+                if (p.predictionType === 'winningTeam') {
+                  return p.predictedWinner === actualWinner;
+                } else {
+                  return p.predictedScoreA === sA && p.predictedScoreB === sB;
+                }
+              });
 
               return (
                 <div>
@@ -684,7 +719,7 @@ export default function Admin() {
                     <div style={{ color: 'var(--text-muted)' }}>Loading predictions...</div>
                   ) : correctPreds.length === 0 ? (
                     <div style={{ color: 'var(--text-muted)', fontStyle: 'italic', padding: '1rem 0' }}>
-                      No participants predicted the exact score ({selectedMatchInfo.result.scoreA} - {selectedMatchInfo.result.scoreB}) for this match.
+                      No participants predicted correctly for this match.
                     </div>
                   ) : (
                     <div className="admin-table-container">
@@ -692,6 +727,7 @@ export default function Admin() {
                         <thead>
                           <tr>
                             <th>User / Phone</th>
+                            <th>Prediction Pick</th>
                             <th>UPI ID</th>
                             <th>UTR / Ref ID</th>
                             <th>Payment Status</th>
@@ -699,26 +735,39 @@ export default function Admin() {
                           </tr>
                         </thead>
                         <tbody>
-                          {correctPreds.map((pred) => (
-                            <tr key={pred._id}>
-                              <td>
-                                <strong>{pred.userName}</strong>
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pred.phoneNumber}</div>
-                              </td>
-                              <td><span style={{ fontSize: '0.85rem' }}>{pred.upiId}</span></td>
-                              <td><span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{pred.transactionId}</span></td>
-                              <td>
-                                <span className={`badge badge-${pred.paymentStatus}`}>{pred.paymentStatus}</span>
-                              </td>
-                              <td>
-                                {pred.isWinner ? (
-                                  <span className="badge badge-winner">🏆 Winner Selected</span>
-                                ) : (
-                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
+                          {correctPreds.map((pred) => {
+                            const isWinningTeam = pred.predictionType === 'winningTeam';
+                            const pickText = isWinningTeam
+                              ? (pred.predictedWinner === 'teamA' ? `${selectedMatchInfo.teamA} to Win` : pred.predictedWinner === 'teamB' ? `${selectedMatchInfo.teamB} to Win` : 'Draw')
+                              : `${pred.predictedScoreA} - ${pred.predictedScoreB}`;
+                            const multiplier = isWinningTeam ? 2 : 3;
+                            return (
+                              <tr key={pred._id}>
+                                <td>
+                                  <strong>{pred.userName}</strong>
+                                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pred.phoneNumber}</div>
+                                </td>
+                                <td>
+                                  <strong>{pickText}</strong>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    {isWinningTeam ? 'Winner' : 'Score'} (Payout: ₹{(pred.entryAmount || 20) * multiplier})
+                                  </div>
+                                </td>
+                                <td><span style={{ fontSize: '0.85rem' }}>{pred.upiId}</span></td>
+                                <td><span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{pred.transactionId}</span></td>
+                                <td>
+                                  <span className={`badge badge-${pred.paymentStatus}`}>{pred.paymentStatus}</span>
+                                </td>
+                                <td>
+                                  {pred.isWinner ? (
+                                    <span className="badge badge-winner">🏆 Winner Selected</span>
+                                  ) : (
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No</span>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -838,7 +887,7 @@ export default function Admin() {
                   <tr>
                     <th>Match</th>
                     <th>User / Phone</th>
-                    <th>Predicted Score</th>
+                    <th>Prediction</th>
                     <th>UPI ID</th>
                     <th>UTR / Ref ID</th>
                     <th>Actions</th>
@@ -864,12 +913,23 @@ export default function Admin() {
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pred.phoneNumber}</div>
                       </td>
                       <td>
-                        <strong style={{ fontSize: '1.1rem', color: 'var(--secondary)' }}>
-                          {pred.predictedScoreA} - {pred.predictedScoreB}
-                        </strong>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                          Entry: ₹{pred.entryAmount || 20} (Payout: ₹{(pred.entryAmount || 20) * 3})
-                        </div>
+                        {(() => {
+                          const isWinningTeam = pred.predictionType === 'winningTeam';
+                          const multiplier = isWinningTeam ? 2 : 3;
+                          const pickText = isWinningTeam
+                            ? (pred.predictedWinner === 'teamA' ? `${pred.matchId?.teamA || 'Team A'} to Win` : pred.predictedWinner === 'teamB' ? `${pred.matchId?.teamB || 'Team B'} to Win` : 'Draw')
+                            : `${pred.predictedScoreA} - ${pred.predictedScoreB}`;
+                          return (
+                            <>
+                              <strong style={{ fontSize: '1.1rem', color: 'var(--secondary)' }}>
+                                {pickText}
+                              </strong>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                Entry: ₹{pred.entryAmount || 20} (Payout: ₹{(pred.entryAmount || 20) * multiplier})
+                              </div>
+                            </>
+                          );
+                        })()}
                       </td>
                       <td><span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{pred.upiId}</span></td>
                       <td><span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{pred.transactionId}</span></td>
@@ -964,15 +1024,25 @@ export default function Admin() {
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Loading predictions...</div>
                 ) : (
                   (() => {
-                    const matchingPreds = modalPredictions.filter(
-                      p => p.predictedScoreA === parseInt(completeScoreA || 0) && 
-                           p.predictedScoreB === parseInt(completeScoreB || 0)
-                    );
+                    const sA = parseInt(completeScoreA || 0);
+                    const sB = parseInt(completeScoreB || 0);
+                    let actualWinner;
+                    if (sA > sB) actualWinner = 'teamA';
+                    else if (sA < sB) actualWinner = 'teamB';
+                    else actualWinner = 'draw';
+
+                    const matchingPreds = modalPredictions.filter(p => {
+                      if (p.predictionType === 'winningTeam') {
+                        return p.predictedWinner === actualWinner;
+                      } else {
+                        return p.predictedScoreA === sA && p.predictedScoreB === sB;
+                      }
+                    });
                     
                     if (matchingPreds.length === 0) {
                       return (
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '0.5rem 0' }}>
-                          No participants predicted this score combination.
+                          No participants predicted this outcome.
                         </div>
                       );
                     }
@@ -980,34 +1050,40 @@ export default function Admin() {
                     return (
                       <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.5rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                          {matchingPreds.map(pred => (
-                            <div 
-                              key={pred._id} 
-                              style={{ 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
-                                alignItems: 'center',
-                                padding: '0.5rem 0.75rem',
-                                background: 'rgba(255,255,255,0.02)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '6px',
-                                fontSize: '0.8rem'
-                              }}
-                            >
-                              <div>
-                                <span style={{ fontWeight: 600 }}>{pred.userName}</span>
-                                <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>({pred.phoneNumber})</span>
-                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-                                  UPI: {pred.upiId} | UTR: {pred.transactionId}
+                          {matchingPreds.map(pred => {
+                            const isWinningTeam = pred.predictionType === 'winningTeam';
+                            const pickText = isWinningTeam
+                              ? (pred.predictedWinner === 'teamA' ? `${selectedMatch.teamA} to Win` : pred.predictedWinner === 'teamB' ? `${selectedMatch.teamB} to Win` : 'Draw')
+                              : `${pred.predictedScoreA} - ${pred.predictedScoreB}`;
+                            return (
+                              <div 
+                                key={pred._id} 
+                                style={{ 
+                                  display: 'flex', 
+                                  justifyContent: 'space-between', 
+                                  alignItems: 'center',
+                                  padding: '0.5rem 0.75rem',
+                                  background: 'rgba(255,255,255,0.02)',
+                                  border: '1px solid var(--border-color)',
+                                  borderRadius: '6px',
+                                  fontSize: '0.8rem'
+                                }}
+                              >
+                                <div>
+                                  <span style={{ fontWeight: 600 }}>{pred.userName}</span>
+                                  <span style={{ color: 'var(--text-muted)', marginLeft: '0.5rem' }}>({pred.phoneNumber})</span>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                                    Pick: {pickText} | UPI: {pred.upiId} | UTR: {pred.transactionId}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className={`badge badge-${pred.paymentStatus}`} style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem' }}>
+                                    {pred.paymentStatus}
+                                  </span>
                                 </div>
                               </div>
-                              <div>
-                                <span className={`badge badge-${pred.paymentStatus}`} style={{ fontSize: '0.65rem', padding: '0.15rem 0.5rem' }}>
-                                  {pred.paymentStatus}
-                                </span>
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     );
@@ -1038,18 +1114,23 @@ export default function Admin() {
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1rem' }}>
               Match: <strong>{winnerModalMatch.teamA} vs {winnerModalMatch.teamB}</strong> (Final: {winnerModalMatch.result.scoreA} - {winnerModalMatch.result.scoreB}).
-              Below are users who predicted the exact score.
+              Below are users who predicted correctly.
             </p>
 
             <div style={{ margin: '1.5rem 0', maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '0.5rem' }}>
               {exactPredictions.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                  No users predicted the exact score.
+                  No users predicted correctly.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                   {exactPredictions.map((pred) => {
                     const isVerified = pred.paymentStatus === 'verified';
+                    const isWinningTeam = pred.predictionType === 'winningTeam';
+                    const pickText = isWinningTeam
+                      ? (pred.predictedWinner === 'teamA' ? `${winnerModalMatch.teamA} to Win` : pred.predictedWinner === 'teamB' ? `${winnerModalMatch.teamB} to Win` : 'Draw')
+                      : `${pred.predictedScoreA} - ${pred.predictedScoreB}`;
+                    const multiplier = isWinningTeam ? 2 : 3;
                     return (
                       <div 
                         key={pred._id} 
@@ -1077,7 +1158,7 @@ export default function Admin() {
                               {pred.userName} ({pred.phoneNumber})
                             </div>
                             <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              UPI: {pred.upiId} | UTR: {pred.transactionId} | Paid: ₹{pred.entryAmount || 20} (Payout: ₹{(pred.entryAmount || 20) * 3})
+                              Pick: {pickText} | UPI: {pred.upiId} | UTR: {pred.transactionId} | Paid: ₹{pred.entryAmount || 20} (Payout: ₹{(pred.entryAmount || 20) * multiplier})
                             </div>
                           </div>
                         </div>
