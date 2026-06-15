@@ -52,7 +52,7 @@ export default function Predict() {
       if (!res.ok) throw new Error('Failed to fetch match details');
       const data = await res.json();
       const currentMatch = data.find((m) => m._id === matchId);
-      
+
       if (!currentMatch) {
         throw new Error('Match not found');
       }
@@ -161,22 +161,22 @@ export default function Predict() {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     const img = new Image();
-    
+
     canvas.width = 300;
     canvas.height = 300;
-    
+
     img.onload = () => {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 25, 25, 250, 250);
-      
+
       const pngFile = canvas.toDataURL('image/png');
       const downloadLink = document.createElement('a');
       downloadLink.download = `QR_Code_${match.teamA}_vs_${match.teamB}.png`;
       downloadLink.href = pngFile;
       downloadLink.click();
     };
-    
+
     img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
@@ -448,13 +448,13 @@ export default function Predict() {
 
             <div className="form-group">
               <label style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                <span>Choose Entry Amount ({predictionType === 'winningTeam' ? '₹20 - ₹100' : '₹100 - ₹300'})</span>
+                <span>Choose Entry Amount ({predictionType === 'winningTeam' ? '₹20 - ₹40' : '₹100 - ₹300'})</span>
                 <strong style={{ color: 'var(--accent)' }}>₹{entryAmount}</strong>
               </label>
               <input
                 type="range"
                 min={predictionType === 'winningTeam' ? "20" : "100"}
-                max={predictionType === 'winningTeam' ? "100" : "300"}
+                max={predictionType === 'winningTeam' ? "40" : "300"}
                 step="10"
                 value={entryAmount}
                 onChange={(e) => setEntryAmount(parseInt(e.target.value))}
@@ -462,7 +462,7 @@ export default function Predict() {
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
                 <span>Min: ₹{predictionType === 'winningTeam' ? '20' : '100'}</span>
-                <span>Max: ₹{predictionType === 'winningTeam' ? '100' : '300'}</span>
+                <span>Max: ₹{predictionType === 'winningTeam' ? '40' : '300'}</span>
               </div>
               <div style={{ marginTop: '0.75rem', background: 'rgba(0, 230, 118, 0.08)', border: '1px solid rgba(0, 230, 118, 0.25)', padding: '0.75rem', borderRadius: '8px', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--success)' }}>
@@ -513,10 +513,10 @@ export default function Predict() {
                   <QRCodeSVG id="qr-code-svg" value={upiUrl} size={150} />
                 </div>
                 <div style={{ marginTop: '0.5rem', marginBottom: '0.75rem' }}>
-                  <button 
-                    type="button" 
-                    onClick={downloadQRCode} 
-                    className="btn btn-secondary" 
+                  <button
+                    type="button"
+                    onClick={downloadQRCode}
+                    className="btn btn-secondary"
                     style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', borderRadius: '8px' }}
                   >
                     📥 Save QR to Photos
@@ -588,7 +588,7 @@ export default function Predict() {
             <h3 style={{ marginBottom: '1.5rem', color: 'var(--accent)', fontSize: '1.4rem' }}>
               Important Notice / പ്രധാന അറിയിപ്പ്
             </h3>
-            
+
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'left', lineHeight: '1.6', fontSize: '0.95rem' }}>
               {/* English */}
               <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.25rem' }}>
@@ -607,9 +607,9 @@ export default function Predict() {
               </div>
             </div>
 
-            <button 
-              className="btn btn-primary" 
-              onClick={handleConfirmAlert} 
+            <button
+              className="btn btn-primary"
+              onClick={handleConfirmAlert}
               style={{ width: '100%', marginTop: '2rem', height: '48px', fontSize: '1.05rem', fontWeight: 600 }}
             >
               I Understand / എനിക്ക് മനസ്സിലായി

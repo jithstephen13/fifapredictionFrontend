@@ -215,7 +215,7 @@ export default function Home() {
       <div className="rules-container">
         <h2><Trophy size={22} /> How to Play & Win</h2>
         <ul className="rules-list">
-          <li>Choose your prediction style: <strong>Predict Winner</strong> (entry ₹20 - ₹100) or <strong>Predict Score</strong> (entry ₹100 - ₹300). Pay the entry fee using Google Pay, PhonePe, or Paytm.</li>
+          <li>Choose your prediction style: <strong>Predict Winner</strong> (entry ₹20 - ₹40) or <strong>Predict Score</strong> (entry ₹100 - ₹300). Pay the entry fee using Google Pay, PhonePe, or Paytm.</li>
           <li>Enter your <strong>12-digit UPI Transaction ID (UTR / Ref No)</strong> to complete your submission.</li>
           <li>Predictions close exactly when the match starts.</li>
           <li>Once the match concludes, the administrator will verify payments and update results.</li>
