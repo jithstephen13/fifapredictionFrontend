@@ -23,6 +23,7 @@ export default function Predict() {
   const [predictedScoreB, setPredictedScoreB] = useState('0');
   const [entryAmount, setEntryAmount] = useState(20);
   const [transactionId, setTransactionId] = useState('');
+  const [referralCode, setReferralCode] = useState('');
   const [showPaymentAlert, setShowPaymentAlert] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -123,7 +124,8 @@ export default function Predict() {
         upiId: upiId.trim(),
         predictionType,
         entryAmount: entryAmount,
-        transactionId: transactionId.trim()
+        transactionId: transactionId.trim(),
+        referralCode: referralCode.trim() || undefined
       };
 
       if (predictionType === 'winningTeam') {
@@ -443,6 +445,17 @@ export default function Predict() {
                 onChange={(e) => setUpiId(e.target.value)}
                 className="form-input"
                 required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Referral Code (Optional / റെഫറൽ കോഡ്)</label>
+              <input
+                type="text"
+                placeholder="e.g. REF123456"
+                value={referralCode}
+                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                className="form-input"
               />
             </div>
 

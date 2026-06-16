@@ -37,7 +37,7 @@ export default function Admin() {
   const [completeScoreA, setCompleteScoreA] = useState('0');
   const [completeScoreB, setCompleteScoreB] = useState('0');
   const [completingMatch, setCompletingMatch] = useState(false);
-  
+
   const [winnerModalMatch, setWinnerModalMatch] = useState(null); // Match for winner selection
   const [exactPredictions, setExactPredictions] = useState([]);
   const [selectedWinnerIds, setSelectedWinnerIds] = useState([]);
@@ -148,6 +148,39 @@ export default function Admin() {
       setMatchesLoading(true);
       const res = await fetch(`${API_URL}/matches`);
       const data = await res.json();
+      console.log(data.map(
+
+        ({
+
+          teamA,
+
+          teamB,
+
+          teamALogo,
+
+          teamBLogo,
+
+          kickoffTime,
+
+          status
+
+        }) => ({
+
+          teamA,
+
+          teamB,
+
+          teamALogo,
+
+          teamBLogo,
+
+          kickoffTime,
+
+          status
+
+        })
+
+      ))
       setMatches(data);
     } catch (err) {
       setMatchError('Failed to load matches');
@@ -169,8 +202,41 @@ export default function Admin() {
         body: JSON.stringify(newMatch)
       });
       const data = await res.json();
+      console.log(data.map(
+
+        ({
+
+          teamA,
+
+          teamB,
+
+          teamALogo,
+
+          teamBLogo,
+
+          kickoffTime,
+
+          status
+
+        }) => ({
+
+          teamA,
+
+          teamB,
+
+          teamALogo,
+
+          teamBLogo,
+
+          kickoffTime,
+
+          status
+
+        })
+
+      ))
       if (!res.ok) throw new Error(data.error || 'Failed to create match');
-      
+
       setNewMatch({
         teamA: '',
         teamB: '',
@@ -243,15 +309,15 @@ export default function Admin() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to complete match');
-      
+
       // Close completion modal and open winner selection modal immediately with exact predictions
       setSelectedMatch(null);
       setWinnerModalMatch(data.match);
-      
+
       // Auto pre-select predictions that are verified paid
       const candidates = data.exactPredictions || [];
       setExactPredictions(candidates);
-      
+
       const paidCandidates = candidates.filter(p => p.paymentStatus === 'verified');
       // Auto select first N paid candidates as default winners
       const defaultWinnerIds = paidCandidates.slice(0, data.match.winnerCount).map(p => p._id);
@@ -274,7 +340,7 @@ export default function Admin() {
         headers: { Authorization: `Bearer ${token}` }
       });
       const allPreds = await res.json();
-      
+
       const sA = match.result.scoreA;
       const sB = match.result.scoreB;
       let actualWinner;
@@ -293,7 +359,7 @@ export default function Admin() {
 
       // Pre-select existing winners
       const existingWinners = matchExact.filter(p => p.isWinner).map(p => p._id);
-      
+
       if (existingWinners.length > 0) {
         setSelectedWinnerIds(existingWinners);
       } else {
@@ -431,7 +497,7 @@ export default function Admin() {
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800 }}>Admin Login</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Access restricted to site administrators.</p>
           </div>
-          
+
           <form onSubmit={handleLogin}>
             <div className="form-group">
               <label>Admin Password</label>
@@ -481,6 +547,12 @@ export default function Admin() {
         >
           Payment Verification
         </button>
+        <button
+          className={`admin-tab ${activeTab === 'referrals' ? 'active' : ''}`}
+          onClick={() => setActiveTab('referrals')}
+        >
+          Referral Management
+        </button>
       </div>
 
       {activeTab === 'matches' && (
@@ -490,7 +562,7 @@ export default function Admin() {
             <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--secondary)' }}>
               <Plus size={20} /> Create Upcoming Match
             </h3>
-            
+
             <form onSubmit={handleCreateMatch} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.25rem' }}>
               <div className="form-group">
                 <label>Team A Name</label>
@@ -672,7 +744,7 @@ export default function Admin() {
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
               Select a completed match below to inspect all participants who predicted correctly.
             </p>
-            
+
             <div style={{ marginBottom: '1.5rem', maxWidth: '400px' }}>
               <select
                 value={selectedCompletedMatchId}
@@ -693,7 +765,7 @@ export default function Admin() {
             {selectedCompletedMatchId && (() => {
               const selectedMatchInfo = matches.find((m) => m._id === selectedCompletedMatchId);
               if (!selectedMatchInfo) return null;
-              
+
               const sA = selectedMatchInfo.result.scoreA;
               const sB = selectedMatchInfo.result.scoreB;
               let actualWinner;
@@ -714,7 +786,7 @@ export default function Admin() {
                   <h4 style={{ marginBottom: '1rem', fontSize: '1rem', fontWeight: 600 }}>
                     Correct Predictions ({correctPreds.length} users)
                   </h4>
-                  
+
                   {completedMatchPredictionsLoading ? (
                     <div style={{ color: 'var(--text-muted)' }}>Loading predictions...</div>
                   ) : correctPreds.length === 0 ? (
@@ -784,7 +856,7 @@ export default function Admin() {
           <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', justify: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <span>Verification Board</span>
-              <button 
+              <button
                 onClick={fetchPredictions}
                 style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
                 title="Reload predictions"
@@ -805,7 +877,7 @@ export default function Admin() {
                 className="form-input"
               />
             </div>
-            
+
             {/* Match Filter Dropdown */}
             <div style={{ minWidth: '200px' }}>
               <select
@@ -842,7 +914,7 @@ export default function Admin() {
                 </select>
               </div>
             )}
-            
+
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 className={`btn ${paymentFilter === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
@@ -866,9 +938,9 @@ export default function Admin() {
                 Rejected
               </button>
             </div>
-            
-            <button 
-              className="btn btn-secondary" 
+
+            <button
+              className="btn btn-secondary"
               style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}
               onClick={fetchPredictions}
             >
@@ -972,6 +1044,10 @@ export default function Admin() {
         </div>
       )}
 
+      {activeTab === 'referrals' && (
+        <ReferralManagementDashboard token={token} />
+      )}
+
       {/* Record Score / Complete Match Modal */}
       {selectedMatch && (
         <div className="modal-overlay" onClick={() => setSelectedMatch(null)}>
@@ -1019,7 +1095,7 @@ export default function Admin() {
                 <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--secondary)' }}>
                   <Award size={16} /> Predictions for {completeScoreA || 0} - {completeScoreB || 0}
                 </h4>
-                
+
                 {modalPredictionsLoading ? (
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Loading predictions...</div>
                 ) : (
@@ -1038,7 +1114,7 @@ export default function Admin() {
                         return p.predictedScoreA === sA && p.predictedScoreB === sB;
                       }
                     });
-                    
+
                     if (matchingPreds.length === 0) {
                       return (
                         <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '0.5rem 0' }}>
@@ -1046,7 +1122,7 @@ export default function Admin() {
                         </div>
                       );
                     }
-                    
+
                     return (
                       <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.5rem' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -1056,11 +1132,11 @@ export default function Admin() {
                               ? (pred.predictedWinner === 'teamA' ? `${selectedMatch.teamA} to Win` : pred.predictedWinner === 'teamB' ? `${selectedMatch.teamB} to Win` : 'Draw')
                               : `${pred.predictedScoreA} - ${pred.predictedScoreB}`;
                             return (
-                              <div 
-                                key={pred._id} 
-                                style={{ 
-                                  display: 'flex', 
-                                  justifyContent: 'space-between', 
+                              <div
+                                key={pred._id}
+                                style={{
+                                  display: 'flex',
+                                  justifyContent: 'space-between',
                                   alignItems: 'center',
                                   padding: '0.5rem 0.75rem',
                                   background: 'rgba(255,255,255,0.02)',
@@ -1132,13 +1208,13 @@ export default function Admin() {
                       : `${pred.predictedScoreA} - ${pred.predictedScoreB}`;
                     const multiplier = isWinningTeam ? 2 : 3;
                     return (
-                      <div 
-                        key={pred._id} 
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'space-between', 
-                          padding: '0.75rem', 
+                      <div
+                        key={pred._id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.75rem',
                           background: 'rgba(255,255,255,0.02)',
                           border: '1px solid var(--border-color)',
                           borderRadius: '8px',
@@ -1191,10 +1267,10 @@ export default function Admin() {
               <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setWinnerModalMatch(null)}>
                 Cancel
               </button>
-              <button 
-                type="button" 
-                className="btn btn-primary" 
-                style={{ flex: 2 }} 
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ flex: 2 }}
                 onClick={handleSaveWinners}
                 disabled={savingWinners}
               >
@@ -1202,6 +1278,224 @@ export default function Admin() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReferralManagementDashboard({ token }) {
+  const [subTab, setSubTab] = React.useState('claims');
+  const [claims, setClaims] = React.useState([]);
+  const [users, setUsers] = React.useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [claimFilter, setClaimFilter] = React.useState('pending');
+
+  const fetchClaims = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const query = claimFilter !== 'all' ? `?status=${claimFilter}` : '';
+      const res = await fetch(`${API_URL}/referrals/admin/claims${query}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch claims');
+      setClaims(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [claimFilter, token]);
+
+  const fetchUsers = React.useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const res = await fetch(`${API_URL}/referrals/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch users');
+      setUsers(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  React.useEffect(() => {
+    if (subTab === 'claims') {
+      fetchClaims();
+    } else {
+      fetchUsers();
+    }
+  }, [subTab, fetchClaims, fetchUsers]);
+
+  const handleMarkPaid = async (id) => {
+    if (!window.confirm('Are you sure you want to mark this claim as paid?')) return;
+    try {
+      const res = await fetch(`${API_URL}/referrals/admin/claims/${id}/pay`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to pay claim');
+      alert('Claim successfully marked as paid.');
+      fetchClaims();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  return (
+    <div style={{ marginTop: '1.5rem' }}>
+      <div className="admin-tabs" style={{ marginBottom: '1.5rem', display: 'flex', gap: '0.5rem', borderBottom: 'none' }}>
+        <button
+          className={`admin-tab ${subTab === 'claims' ? 'active' : ''}`}
+          onClick={() => setSubTab('claims')}
+          style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+        >
+          Referral Claims
+        </button>
+        <button
+          className={`admin-tab ${subTab === 'users' ? 'active' : ''}`}
+          onClick={() => setSubTab('users')}
+          style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+        >
+          Referral Users
+        </button>
+      </div>
+
+      {error && <div className="alert alert-error" style={{ marginBottom: '1rem' }}>{error}</div>}
+
+      {subTab === 'claims' ? (
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+            <h3 style={{ fontSize: '1.1rem', margin: 0 }}>Claim Requests</h3>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button
+                className={`btn ${claimFilter === 'pending' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }}
+                onClick={() => setClaimFilter('pending')}
+              >
+                Pending
+              </button>
+              <button
+                className={`btn ${claimFilter === 'paid' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }}
+                onClick={() => setClaimFilter('paid')}
+              >
+                Paid
+              </button>
+              <button
+                className={`btn ${claimFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ padding: '0.3rem 0.8rem', fontSize: '0.8rem' }}
+                onClick={() => setClaimFilter('all')}
+              >
+                All
+              </button>
+            </div>
+          </div>
+
+          {loading ? (
+            <div>Loading claims...</div>
+          ) : claims.length === 0 ? (
+            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No claims found.</div>
+          ) : (
+            <div className="admin-table-container">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Referral Code</th>
+                    <th>User Details (Owner)</th>
+                    <th>UPI ID</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Created Date</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {claims.map((claim) => (
+                    <tr key={claim._id}>
+                      <td><strong style={{ color: 'var(--primary)' }}>{claim.referralCode}</strong></td>
+                      <td>
+                        <strong>{claim.referralUserId?.phoneNumber || 'N/A'}</strong>
+                      </td>
+                      <td>{claim.referralUserId?.upiId || 'N/A'}</td>
+                      <td><strong style={{ color: 'var(--secondary)' }}>₹{claim.amount}</strong></td>
+                      <td>
+                        <span className={`badge badge-${claim.status === 'paid' ? 'verified' : 'pending'}`}>
+                          {claim.status}
+                        </span>
+                      </td>
+                      <td>{new Date(claim.createdAt).toLocaleString()}</td>
+                      <td>
+                        {claim.status === 'pending' ? (
+                          <button
+                            className="action-btn action-btn-approve"
+                            onClick={() => handleMarkPaid(claim._id)}
+                          >
+                            Mark Paid
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Paid on {new Date(claim.paidAt).toLocaleDateString()}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="card">
+          <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem' }}>Referral Users Registry</h3>
+
+          {loading ? (
+            <div>Loading users...</div>
+          ) : users.length === 0 ? (
+            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No referral users registered.</div>
+          ) : (
+            <div className="admin-table-container">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Referral Code</th>
+                    <th>Phone Number</th>
+                    <th>UPI ID</th>
+                    <th>Total Earned</th>
+                    <th>Total Claimed</th>
+                    <th>Pending Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {users.map((u) => {
+                    const pending = u.totalEarned - u.totalClaimed;
+                    return (
+                      <tr key={u._id}>
+                        <td><strong style={{ color: 'var(--primary)' }}>{u.referralCode}</strong></td>
+                        <td>{u.phoneNumber}</td>
+                        <td>{u.upiId}</td>
+                        <td>₹{u.totalEarned}</td>
+                        <td>₹{u.totalClaimed}</td>
+                        <td>
+                          <strong style={{ color: pending > 0 ? 'var(--primary)' : 'var(--text-muted)' }}>
+                            ₹{pending}
+                          </strong>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>

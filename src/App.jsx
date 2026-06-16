@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import Home from './pages/Home';
 import Predict from './pages/Predict';
 import Admin from './pages/Admin';
+import Referral from './pages/Referral';
 
 // Export API URL for use across pages
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
@@ -24,6 +25,12 @@ function Header() {
           >
             Matches
           </Link>
+          <Link 
+            to="/referrals" 
+            className={`nav-link ${location.pathname === '/referrals' ? 'active' : ''}`}
+          >
+            Refer & Earn
+          </Link>
         </nav>
       </div>
     </header>
@@ -40,6 +47,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/predict/:matchId" element={<Predict />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/referrals" element={<Referral />} />
           </Routes>
         </main>
         <footer className="footer">
