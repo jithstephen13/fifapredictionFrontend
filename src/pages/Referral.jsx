@@ -6,7 +6,7 @@ export default function Referral() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [upiId, setUpiId] = useState('');
   const [referralCode, setReferralCode] = useState('');
-  
+
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -48,7 +48,7 @@ export default function Referral() {
 
       setReferralCode(data.referralCode);
       setSuccess(isRecoverMode ? 'Code recovered successfully!' : 'Code generated successfully!');
-      
+
       // Proactively fetch stats for this code
       fetchEligibility(data.referralCode);
     } catch (err) {
@@ -121,11 +121,11 @@ export default function Referral() {
         <h1 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
           <Gift size={32} style={{ color: 'var(--primary)' }} /> Share & Earn Rewards
         </h1>
-        <p>Invite friends to make match predictions. Earn up to ₹100 per friend when they join and play!</p>
+        <p>Invite friends to make match predictions. Earn when they join and play!</p>
       </div>
 
       <div className="match-grid" style={{ gridTemplateColumns: referralCode ? '1fr 1.2fr' : '1fr', gap: '2rem' }}>
-        
+
         {/* Step 1: Code Generator Card */}
         <div className="card" style={{ padding: '2rem' }}>
           <h2 style={{ fontSize: '1.25rem', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -195,7 +195,7 @@ export default function Referral() {
         {/* Step 2: Stats & Referral Display */}
         {referralCode && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            
+
             {/* Share Card */}
             <div className="card" style={{ padding: '1.5rem', border: '2px dashed var(--primary)', background: 'rgba(255,215,0,0.03)', textAlign: 'center' }}>
               <span style={{ fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '1px', color: 'var(--text-muted)' }}>
@@ -254,7 +254,7 @@ export default function Referral() {
                       <RefreshCw size={12} /> Refresh
                     </button>
                   </h3>
-                  
+
                   {stats.rewards.length === 0 ? (
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', margin: '1rem 0' }}>
                       No referral rewards earned yet. Keep sharing!
