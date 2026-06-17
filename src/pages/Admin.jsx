@@ -243,7 +243,7 @@ export default function Admin() {
         teamALogo: '⚽',
         teamBLogo: '⚽',
         kickoffTime: '',
-        winnerCount: 2,
+        winnerCount: 10,
         prizeAmount: 100
       });
       fetchMatches();
