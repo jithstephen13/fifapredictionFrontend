@@ -340,7 +340,7 @@ export default function Home() {
               </div>
             )}
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxHeight: '400px', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               {getWinnersByMatch().map((group) => (
                 <div
                   key={group.match._id || `${group.match.teamA}-vs-${group.match.teamB}`}

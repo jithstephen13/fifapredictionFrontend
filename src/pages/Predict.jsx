@@ -17,11 +17,11 @@ export default function Predict() {
   const [userName, setUserName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [upiId, setUpiId] = useState('');
-  const [predictionType, setPredictionType] = useState('winningTeam');
+  const [predictionType, setPredictionType] = useState('score');
   const [predictedWinner, setPredictedWinner] = useState('');
   const [predictedScoreA, setPredictedScoreA] = useState('0');
   const [predictedScoreB, setPredictedScoreB] = useState('0');
-  const [entryAmount, setEntryAmount] = useState(20);
+  const [entryAmount, setEntryAmount] = useState(100);
   const [transactionId, setTransactionId] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [showPaymentAlert, setShowPaymentAlert] = useState(false);

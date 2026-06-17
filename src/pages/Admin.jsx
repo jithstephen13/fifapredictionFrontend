@@ -319,8 +319,8 @@ export default function Admin() {
       setExactPredictions(candidates);
 
       const paidCandidates = candidates.filter(p => p.paymentStatus === 'verified');
-      // Auto select first N paid candidates as default winners
-      const defaultWinnerIds = paidCandidates.slice(0, data.match.winnerCount).map(p => p._id);
+      // Auto select all paid candidates as default winners
+      const defaultWinnerIds = paidCandidates.map(p => p._id);
       setSelectedWinnerIds(defaultWinnerIds);
 
       fetchMatches();
@@ -363,9 +363,9 @@ export default function Admin() {
       if (existingWinners.length > 0) {
         setSelectedWinnerIds(existingWinners);
       } else {
-        // Auto select first N verified paid candidates
+        // Auto select all verified paid candidates
         const paidCandidates = matchExact.filter(p => p.paymentStatus === 'verified');
-        setSelectedWinnerIds(paidCandidates.slice(0, match.winnerCount).map(p => p._id));
+        setSelectedWinnerIds(paidCandidates.map(p => p._id));
       }
     } catch (err) {
       alert('Failed to load predictions for match');
@@ -1193,7 +1193,7 @@ export default function Admin() {
               Below are users who predicted correctly.
             </p>
 
-            <div style={{ margin: '1.5rem 0', maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '0.5rem' }}>
+            <div style={{ margin: '1.5rem 0', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '0.5rem' }}>
               {exactPredictions.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
                   No users predicted correctly.
@@ -1254,13 +1254,8 @@ export default function Admin() {
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>
-                Selected: <strong>{selectedWinnerIds.length} / {winnerModalMatch.winnerCount}</strong> winners
+                Selected: <strong>{selectedWinnerIds.length}</strong> winners
               </span>
-              {selectedWinnerIds.length > winnerModalMatch.winnerCount && (
-                <span style={{ color: 'var(--error)', fontSize: '0.8rem', fontWeight: 600 }}>
-                  Warning: Exceeds standard {winnerModalMatch.winnerCount} winners!
-                </span>
-              )}
             </div>
 
             <div style={{ display: 'flex', gap: '1rem' }}>
