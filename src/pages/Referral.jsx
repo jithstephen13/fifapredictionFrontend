@@ -124,7 +124,7 @@ export default function Referral() {
         <p>Invite friends to make match predictions. Earn when they join and play!</p>
       </div>
 
-      <div className="match-grid" style={{ gridTemplateColumns: referralCode ? '1fr 1.2fr' : '1fr', gap: '2rem' }}>
+      <div className={`referral-grid ${referralCode ? 'has-code' : ''}`}>
 
         {/* Step 1: Code Generator Card */}
         <div className="card" style={{ padding: '2rem' }}>
@@ -225,7 +225,7 @@ export default function Referral() {
               <div className="alert alert-error">{statsError}</div>
             ) : stats && (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div className="referral-stats-grid">
                   <div className="card" style={{ padding: '1rem', textAlign: 'center', background: 'rgba(255,255,255,0.03)' }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Total Earned</div>
                     <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--secondary)', marginTop: '0.25rem' }}>₹{stats.totalEligible}</div>
@@ -291,7 +291,7 @@ export default function Referral() {
         <h2 style={{ fontSize: '1.25rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)' }}>
           <Trophy size={20} /> Referral Program Rules
         </h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', fontSize: '0.85rem', lineHeight: '1.4' }}>
+        <div className="referral-rules-grid">
           <div style={{ padding: '1rem', background: 'rgba(255,255,255,0.02)', borderRadius: '10px' }}>
             <h4 style={{ color: 'var(--secondary)', marginBottom: '0.5rem', fontWeight: 600 }}>🏆 Prediction Type: Winner (₹50 Reward)</h4>
             <p style={{ color: 'var(--text-muted)', margin: 0 }}>

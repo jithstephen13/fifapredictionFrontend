@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import Predict from './pages/Predict';
+import PredictDay from './pages/PredictDay';
 import Admin from './pages/Admin';
 import Referral from './pages/Referral';
 
@@ -46,6 +47,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/predict/:matchId" element={<Predict />} />
+            <Route path="/predict-day" element={<PredictDay />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/referrals" element={<Referral />} />
           </Routes>

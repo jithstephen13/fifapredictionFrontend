@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { API_URL } from '../App';
-import { QRCodeSVG } from 'qrcode.react'; // Standard package from qrcode.react
-import { ArrowLeft, Send, CheckCircle, Smartphone, CreditCard, ChevronRight, Copy } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { ArrowLeft, Send, CheckCircle, CreditCard, ChevronRight, Copy } from 'lucide-react';
 
-export default function Predict() {
-  const { matchId } = useParams();
+export default function PredictDay() {
+  const [searchParams] = useSearchParams();
+  const dateParam = searchParams.get('date');
   const navigate = useNavigate();
 
-  const [match, setMatch] = useState(null);
+  const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -17,11 +18,11 @@ export default function Predict() {
   const [userName, setUserName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [upiId, setUpiId] = useState('');
-  const [predictionType, setPredictionType] = useState('score');
-  const [predictedWinner, setPredictedWinner] = useState('');
-  const [predictedScoreA, setPredictedScoreA] = useState('0');
-  const [predictedScoreB, setPredictedScoreB] = useState('0');
-  const [entryAmount, setEntryAmount] = useState(100);
+  
+  // Predictions state: { [matchId]: 'teamA' | 'teamB' | 'draw' }
+  const [selections, setSelections] = useState({});
+  
+  const [entryAmount, setEntryAmount] = useState(50);
   const [transactionId, setTransactionId] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [showPaymentAlert, setShowPaymentAlert] = useState(false);
@@ -30,6 +31,55 @@ export default function Predict() {
   const [submitError, setSubmitError] = useState(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (!dateParam) {
+      setError('No date selected.');
+      setLoading(false);
+      return;
+    }
+    fetchMatchesForDay();
+  }, [dateParam]);
+
+  const fetchMatchesForDay = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`${API_URL}/matches`);
+      if (!res.ok) throw new Error('Failed to fetch match details');
+      const data = await res.json();
+
+      const dayMatches = data.filter((m) => {
+        const d = new Date(m.kickoffTime);
+        const dayHeader = d.toLocaleDateString('en-US', {
+          timeZone: 'Asia/Kolkata',
+          weekday: 'long',
+          month: 'short',
+          day: 'numeric'
+        });
+        return dayHeader === dateParam;
+      });
+
+      // Filter matches to only active/scheduled ones
+      const now = new Date();
+      const activeMatches = dayMatches.filter(m => m.status === 'scheduled');
+      const anyStarted = dayMatches.some(m => new Date(m.kickoffTime) <= now);
+
+      if (dayMatches.length === 0) {
+        throw new Error('No matches found for this day.');
+      }
+
+      if (anyStarted) {
+        throw new Error('Predictions are closed for this day as a match has already started.');
+      }
+
+      setMatches(activeMatches);
+      setError(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleCopyUPI = async () => {
     try {
@@ -41,57 +91,21 @@ export default function Predict() {
     }
   };
 
-  useEffect(() => {
-    fetchMatchDetails();
-  }, [matchId]);
-
-  const fetchMatchDetails = async () => {
-    try {
-      setLoading(true);
-      // We can fetch from all matches or list active ones
-      const res = await fetch(`${API_URL}/matches`);
-      if (!res.ok) throw new Error('Failed to fetch match details');
-      const data = await res.json();
-      const currentMatch = data.find((m) => m._id === matchId);
-
-      if (!currentMatch) {
-        throw new Error('Match not found');
-      }
-
-      // Check if match already started
-      const now = new Date();
-      if (new Date(currentMatch.kickoffTime) <= now && currentMatch.status === 'scheduled') {
-        throw new Error('Predictions are closed for this match as it has already started.');
-      } else if (currentMatch.status === 'completed') {
-        throw new Error('Match is already completed. Predictions are closed.');
-      }
-
-      setMatch(currentMatch);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleNextStep = (e) => {
     e.preventDefault();
     if (!userName || !phoneNumber || !upiId) {
       setSubmitError('Please fill in your details');
       return;
     }
-    if (predictionType === 'winningTeam') {
-      if (!predictedWinner) {
-        setSubmitError('Please select a team or draw prediction');
-        return;
-      }
-    } else {
-      if (predictedScoreA === '' || predictedScoreB === '') {
-        setSubmitError('Please enter predicted scores');
-        return;
-      }
+
+    // Check that minimum 3 matches (or all if matches count < 3) are predicted
+    const predictedCount = Object.keys(selections).length;
+    const minRequired = Math.min(3, matches.length);
+    if (predictedCount < minRequired) {
+      setSubmitError(`Please select the outcome for at least ${minRequired} matches of the day.`);
+      return;
     }
+
     setSubmitError(null);
     setShowPaymentAlert(true);
   };
@@ -117,23 +131,21 @@ export default function Predict() {
       setSubmitting(true);
       setSubmitError(null);
 
+      const predictionsList = Object.keys(selections).map((mId) => ({
+        matchId: mId,
+        predictedWinner: selections[mId]
+      }));
+
       const payload = {
-        matchId,
         userName: userName.trim(),
         phoneNumber: phoneNumber.trim(),
         upiId: upiId.trim(),
-        predictionType,
+        predictionType: 'winningTeam',
         entryAmount: entryAmount,
         transactionId: transactionId.trim(),
-        referralCode: referralCode.trim() || undefined
+        referralCode: referralCode.trim() || undefined,
+        predictions: predictionsList
       };
-
-      if (predictionType === 'winningTeam') {
-        payload.predictedWinner = predictedWinner;
-      } else {
-        payload.predictedScoreA = parseInt(predictedScoreA);
-        payload.predictedScoreB = parseInt(predictedScoreB);
-      }
 
       const res = await fetch(`${API_URL}/predictions`, {
         method: 'POST',
@@ -145,7 +157,7 @@ export default function Predict() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to submit prediction');
+        throw new Error(data.error || 'Failed to submit predictions');
       }
 
       setSubmitSuccess(true);
@@ -154,32 +166,6 @@ export default function Predict() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const downloadQRCode = () => {
-    const svg = document.getElementById('qr-code-svg');
-    if (!svg) return;
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-
-    canvas.width = 300;
-    canvas.height = 300;
-
-    img.onload = () => {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 25, 25, 250, 250);
-
-      const pngFile = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.download = `QR_Code_${match.teamA}_vs_${match.teamB}.png`;
-      downloadLink.href = pngFile;
-      downloadLink.click();
-    };
-
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
   if (loading) {
@@ -197,16 +183,10 @@ export default function Predict() {
     );
   }
 
-  // Generate UPI payment URL
-  // pa = Payment Address (UPI ID)
-  // pn = Payee Name
-  // am = Amount
-  // cu = Currency
-  // tn = Transaction Note
   const payeeUPI = 'gjfifapredictor@axl';
   const payeeName = 'FIFA Match Prediction';
   const amount = entryAmount.toString();
-  const note = `Prediction_${match.teamA}_vs_${match.teamB}`.replace(/\s+/g, '_');
+  const note = `Prediction_Day_${dateParam}`.replace(/\s+/g, '_');
   const upiUrl = `upi://pay?pa=${payeeUPI}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(note)}`;
 
   if (submitSuccess) {
@@ -214,9 +194,9 @@ export default function Predict() {
       <div className="prediction-panel" style={{ textAlign: 'center', padding: '2rem 0' }}>
         <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem', padding: '3rem 2rem' }}>
           <CheckCircle size={64} color="var(--success)" />
-          <h2>Prediction Submitted!</h2>
-          <p style={{ color: 'var(--text-muted)', maxWidth: '400px', lineHeight: '1.6' }}>
-            Thank you, <strong>{userName}</strong>. Your prediction of <strong>{predictionType === 'winningTeam' ? (predictedWinner === 'teamA' ? `${match.teamA} to Win` : predictedWinner === 'teamB' ? `${match.teamB} to Win` : 'Draw') : `${predictedScoreA} - ${predictedScoreB}`}</strong> has been submitted.
+          <h2>Predictions Submitted!</h2>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '450px', lineHeight: '1.6' }}>
+            Thank you, <strong>{userName}</strong>. Your winning team predictions for <strong>{dateParam}</strong> have been submitted.
           </p>
           <div className="badge badge-pending" style={{ fontSize: '0.9rem', padding: '0.5rem 1.25rem' }}>
             Payment Status: Pending Verification
@@ -235,17 +215,17 @@ export default function Predict() {
   return (
     <div className="prediction-panel">
       <button className="btn btn-secondary" onClick={() => step === 2 ? setStep(1) : navigate('/')} style={{ marginBottom: '1.5rem' }}>
-        <ArrowLeft size={16} /> {step === 2 ? 'Back to Prediction' : 'Back to Matches'}
+        <ArrowLeft size={16} /> {step === 2 ? 'Back to Predictions' : 'Back to Matches'}
       </button>
 
       <div className="card">
-        <div className="predict-header">
+        <div className="predict-header" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
           <div>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 700 }}>
-              {match.teamA} vs {match.teamB}
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--secondary)' }}>
+              🏆 Predict Day Winners
             </h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-              Kickoff: {new Date(match.kickoffTime).toLocaleString()}
+              Day: {dateParam}
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -255,45 +235,71 @@ export default function Predict() {
           </div>
         </div>
 
-        {/* Form Steps */}
         {step === 1 ? (
           <form onSubmit={handleNextStep}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', color: 'var(--secondary)' }}>
-              1. Predict Outcome & Enter Details
+              1. Predict Outcome of Matches (Min 3 Predictions)
             </h3>
 
-            {/* Score Inputs */}
-            <div className="predict-score-input-container" style={{ marginBottom: '1.5rem' }}>
-              <div className="score-team-box">
-                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{match.teamA}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
-                  value={predictedScoreA}
-                  onChange={(e) => setPredictedScoreA(e.target.value)}
-                  className="score-input"
-                  required
-                />
-              </div>
+            {/* Match list with outcome selectors */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginBottom: '2rem' }}>
+              {matches.map((match) => (
+                <div key={match._id} style={{ border: '1px solid var(--border-color)', borderRadius: '12px', padding: '1.25rem', background: 'rgba(255,255,255,0.01)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                    <span>Kickoff: {new Date(match.kickoffTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
 
-              <span className="score-divider">-</span>
+                  <div className="match-predict-row">
+                    <button
+                      type="button"
+                      className={`btn match-predict-btn ${selections[match._id] === 'teamA' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setSelections({ ...selections, [match._id]: 'teamA' })}
+                      style={{
+                        boxShadow: selections[match._id] === 'teamA' ? '0 0 12px rgba(255, 179, 0, 0.2)' : 'none',
+                        borderColor: selections[match._id] === 'teamA' ? 'var(--primary)' : 'var(--border-color)',
+                        borderWidth: selections[match._id] === 'teamA' ? '2px' : '1px'
+                      }}
+                    >
+                      <span className="match-predict-logo">{match.teamALogo || '🏳️'}</span>
+                      <span className="match-predict-text">{match.teamA} Wins</span>
+                    </button>
 
-              <div className="score-team-box">
-                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{match.teamB}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
-                  value={predictedScoreB}
-                  onChange={(e) => setPredictedScoreB(e.target.value)}
-                  className="score-input"
-                  required
-                />
-              </div>
+                    <button
+                      type="button"
+                      className={`btn match-predict-btn ${selections[match._id] === 'draw' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setSelections({ ...selections, [match._id]: 'draw' })}
+                      style={{
+                        boxShadow: selections[match._id] === 'draw' ? '0 0 12px rgba(255, 179, 0, 0.2)' : 'none',
+                        borderColor: selections[match._id] === 'draw' ? 'var(--primary)' : 'var(--border-color)',
+                        borderWidth: selections[match._id] === 'draw' ? '2px' : '1px'
+                      }}
+                    >
+                      <span className="match-predict-logo">🤝</span>
+                      <span className="match-predict-text">Draw</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={`btn match-predict-btn ${selections[match._id] === 'teamB' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => setSelections({ ...selections, [match._id]: 'teamB' })}
+                      style={{
+                        boxShadow: selections[match._id] === 'teamB' ? '0 0 12px rgba(255, 179, 0, 0.2)' : 'none',
+                        borderColor: selections[match._id] === 'teamB' ? 'var(--primary)' : 'var(--border-color)',
+                        borderWidth: selections[match._id] === 'teamB' ? '2px' : '1px'
+                      }}
+                    >
+                      <span className="match-predict-logo">{match.teamBLogo || '🏳️'}</span>
+                      <span className="match-predict-text">{match.teamB} Wins</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {/* User Details */}
+            <h3 style={{ fontSize: '1.1rem', marginBottom: '1.25rem', color: 'var(--secondary)' }}>
+              2. Enter Your Details
+            </h3>
+
             <div className="form-group">
               <label>Your Full Name</label>
               <input
@@ -319,7 +325,7 @@ export default function Predict() {
             </div>
 
             <div className="form-group">
-              <label>UPI ID (to send ₹{entryAmount * 3} prize if you win!)</label>
+              <label>UPI ID (to send ₹{entryAmount * 2} prize if you win!)</label>
               <input
                 type="text"
                 placeholder="e.g. name@upi or phone@paytm"
@@ -343,25 +349,25 @@ export default function Predict() {
 
             <div className="form-group">
               <label style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                <span>Choose Entry Amount (₹100 - ₹300)</span>
+                <span>Choose Entry Amount (₹50 - ₹140)</span>
                 <strong style={{ color: 'var(--accent)' }}>₹{entryAmount}</strong>
               </label>
               <input
                 type="range"
-                min="100"
-                max="300"
+                min="50"
+                max="140"
                 step="10"
                 value={entryAmount}
                 onChange={(e) => setEntryAmount(parseInt(e.target.value))}
                 style={{ width: '100%', margin: '0.5rem 0', accentColor: 'var(--primary)' }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                <span>Min: ₹100</span>
-                <span>Max: ₹300</span>
+                <span>Min: ₹50</span>
+                <span>Max: ₹140</span>
               </div>
               <div style={{ marginTop: '0.75rem', background: 'rgba(0, 230, 118, 0.08)', border: '1px solid rgba(0, 230, 118, 0.25)', padding: '0.75rem', borderRadius: '8px', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--success)' }}>
-                  Potential Payout: 3x = ₹{entryAmount * 3} if correct! 🏆
+                  Potential Payout: 2x = ₹{entryAmount * 2} if all correct! 🏆
                 </span>
               </div>
             </div>
@@ -370,18 +376,18 @@ export default function Predict() {
               <div className="alert alert-error" style={{ margin: '1rem 0' }}>{submitError}</div>
             )}
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1rem' }}>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', marginTop: '1.5rem' }}>
               Proceed to Payment <ChevronRight size={18} />
             </button>
           </form>
         ) : (
           <form onSubmit={handleSubmitPrediction}>
             <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', color: 'var(--secondary)' }}>
-              2. Complete UPI Payment (₹{entryAmount})
+              3. Complete UPI Payment (₹{entryAmount})
             </h3>
 
             <div className="payment-instructions">
-              To verify and submit your prediction, please pay <strong>₹{entryAmount}</strong> entry fee to:
+              To verify and submit your predictions, please pay <strong>₹{entryAmount}</strong> entry fee to:
               <div style={{ display: 'flex', justifyContent: 'center', margin: '0.5rem 0' }}>
                 <div className="upi-copy-wrapper">
                   <span className="upi-id-highlight" style={{ background: 'none', padding: 0 }}>{payeeUPI}</span>
@@ -399,37 +405,14 @@ export default function Predict() {
             </div>
 
             <div className="payment-flow-card">
-              {/* Desktop QR Code */}
-              <div style={{ display: 'none', display: 'block' }}>
+              <div>
                 <p style={{ fontSize: '0.85rem', marginBottom: '0.75rem', fontWeight: 600 }}>
                   Scan this QR Code using any UPI App (GPay, PhonePe, Paytm, BHIM):
                 </p>
                 <div className="upi-qr-wrapper">
                   <QRCodeSVG id="qr-code-svg" value={upiUrl} size={150} />
                 </div>
-                <div style={{ marginTop: '0.5rem', marginBottom: '0.75rem' }}>
-                  <button
-                    type="button"
-                    onClick={downloadQRCode}
-                    className="btn btn-secondary"
-                    style={{ fontSize: '0.8rem', padding: '0.4rem 0.8rem', borderRadius: '8px' }}
-                  >
-                    📥 Save QR to Photos
-                  </button>
-                </div>
               </div>
-
-              {/* Mobile Intent link - Commented out to prevent routing to WhatsApp on mobile devices */}
-              {/*
-              <div className="upi-intent-buttons">
-                <p style={{ fontSize: '0.85rem', margin: '0.5rem 0', color: 'var(--text-muted)' }}>
-                  Or tap below to pay directly using installed UPI App on mobile:
-                </p>
-                <a href={upiUrl} className="upi-intent-btn">
-                  <Smartphone size={18} /> Pay with GPay / PhonePe / Paytm
-                </a>
-              </div>
-              */}
             </div>
 
             <div className="form-group" style={{ marginTop: '1.5rem' }}>
@@ -469,7 +452,7 @@ export default function Predict() {
                 style={{ flex: 2 }}
                 disabled={submitting}
               >
-                {submitting ? 'Submitting...' : 'Submit Prediction'} <Send size={16} />
+                {submitting ? 'Submitting...' : 'Submit Predictions'} <Send size={16} />
               </button>
             </div>
           </form>
@@ -485,7 +468,6 @@ export default function Predict() {
             </h3>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', textAlign: 'left', lineHeight: '1.6', fontSize: '0.95rem' }}>
-              {/* English */}
               <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '1.25rem' }}>
                 <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>English:</p>
                 <p style={{ color: 'var(--text-muted)' }}>
@@ -493,7 +475,6 @@ export default function Predict() {
                 </p>
               </div>
 
-              {/* Malayalam */}
               <div>
                 <p style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem' }}>മലയാളം:</p>
                 <p style={{ color: 'var(--text-muted)' }}>

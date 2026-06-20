@@ -350,7 +350,7 @@ export default function Admin() {
 
       const matchExact = allPreds.filter(p => {
         if (p.predictionType === 'winningTeam') {
-          return p.predictedWinner === actualWinner;
+          return p.isGroupEligible && p.predictedWinner === actualWinner;
         } else {
           return p.predictedScoreA === sA && p.predictedScoreB === sB;
         }
@@ -775,7 +775,7 @@ export default function Admin() {
 
               const correctPreds = completedMatchPredictions.filter(p => {
                 if (p.predictionType === 'winningTeam') {
-                  return p.predictedWinner === actualWinner;
+                  return p.isGroupEligible && p.predictedWinner === actualWinner;
                 } else {
                   return p.predictedScoreA === sA && p.predictedScoreB === sB;
                 }
@@ -953,93 +953,134 @@ export default function Admin() {
           ) : filteredPredictions.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>No predictions match this filter.</div>
           ) : (
-            <div className="admin-table-container">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>Match</th>
-                    <th>User / Phone</th>
-                    <th>Prediction</th>
-                    <th>UPI ID</th>
-                    <th>UTR / Ref ID</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPredictions.map((pred) => (
-                    <tr key={pred._id}>
-                      <td>
-                        {pred.matchId ? (
-                          <>
-                            <strong>{pred.matchId.teamA} vs {pred.matchId.teamB}</strong>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              Match Status: {pred.matchId.status}
-                            </div>
-                          </>
-                        ) : (
-                          <span style={{ color: 'var(--error)', fontStyle: 'italic' }}>Deleted Match</span>
-                        )}
-                      </td>
-                      <td>
-                        <strong>{pred.userName}</strong>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{pred.phoneNumber}</div>
-                      </td>
-                      <td>
-                        {(() => {
-                          const isWinningTeam = pred.predictionType === 'winningTeam';
-                          const multiplier = isWinningTeam ? 2 : 3;
-                          const pickText = isWinningTeam
-                            ? (pred.predictedWinner === 'teamA' ? `${pred.matchId?.teamA || 'Team A'} to Win` : pred.predictedWinner === 'teamB' ? `${pred.matchId?.teamB || 'Team B'} to Win` : 'Draw')
-                            : `${pred.predictedScoreA} - ${pred.predictedScoreB}`;
-                          return (
-                            <>
-                              <strong style={{ fontSize: '1.1rem', color: 'var(--secondary)' }}>
-                                {pickText}
-                              </strong>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                                Entry: ₹{pred.entryAmount || 20} (Payout: ₹{(pred.entryAmount || 20) * multiplier})
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </td>
-                      <td><span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{pred.upiId}</span></td>
-                      <td><span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{pred.transactionId}</span></td>
-                      <td>
-                        {pred.paymentStatus === 'pending' ? (
-                          <div className="admin-actions">
-                            <button
-                              className="action-btn action-btn-approve"
-                              onClick={() => handleUpdatePayment(pred._id, 'verified')}
-                            >
-                              <Check size={14} /> Approve
-                            </button>
-                            <button
-                              className="action-btn action-btn-reject"
-                              onClick={() => handleUpdatePayment(pred._id, 'rejected')}
-                            >
-                              <X size={14} /> Reject
-                            </button>
-                          </div>
-                        ) : (
-                          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                            <span className={`badge badge-${pred.paymentStatus}`}>{pred.paymentStatus}</span>
-                            <button
-                              className="action-btn"
-                              style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', padding: '0.2rem 0.4rem' }}
-                              onClick={() => handleUpdatePayment(pred._id, 'pending')}
-                              title="Reset to Pending"
-                            >
-                              Reset
-                            </button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            (() => {
+              const getGroupedPredictions = (preds) => {
+                const groups = {};
+                preds.forEach((pred) => {
+                  const baseTx = pred.transactionId.split('_')[0];
+                  if (!groups[baseTx]) {
+                    groups[baseTx] = {
+                      ...pred,
+                      transactionId: baseTx,
+                      predictions: []
+                    };
+                  }
+                  groups[baseTx].predictions.push(pred);
+                });
+                return Object.values(groups);
+              };
+
+              const groupedPredictions = getGroupedPredictions(filteredPredictions);
+
+              return (
+                <div className="admin-table-container">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Match/Group</th>
+                        <th>User / Phone</th>
+                        <th>Prediction</th>
+                        <th>UPI ID</th>
+                        <th>UTR / Ref ID</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {groupedPredictions.map((group) => {
+                        const isWinningTeam = group.predictionType === 'winningTeam';
+                        return (
+                          <tr key={group.transactionId}>
+                            <td>
+                              {isWinningTeam ? (
+                                <div>
+                                  <strong>🏆 Day-wise Prediction</strong>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                    Matches: {group.predictions.length}
+                                  </div>
+                                </div>
+                              ) : (
+                                group.matchId ? (
+                                  <>
+                                    <strong>{group.matchId.teamA} vs {group.matchId.teamB}</strong>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                      Match Status: {group.matchId.status}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <span style={{ color: 'var(--error)', fontStyle: 'italic' }}>Deleted Match</span>
+                                )
+                              )}
+                            </td>
+                            <td>
+                              <strong>{group.userName}</strong>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{group.phoneNumber}</div>
+                            </td>
+                            <td>
+                              {isWinningTeam ? (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                                  {group.predictions.map((p) => {
+                                    const pickText = p.predictedWinner === 'teamA' ? `${p.matchId?.teamA || 'Team A'} to Win` : p.predictedWinner === 'teamB' ? `${p.matchId?.teamB || 'Team B'} to Win` : 'Draw';
+                                    return (
+                                      <div key={p._id} style={{ fontSize: '0.8rem' }}>
+                                        ⚽ {p.matchId ? `${p.matchId.teamA} vs ${p.matchId.teamB}` : 'Deleted Match'}: <strong style={{ color: 'var(--secondary)' }}>{pickText}</strong>
+                                      </div>
+                                    );
+                                  })}
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem', paddingTop: '0.25rem', borderTop: '1px dashed rgba(255,255,255,0.05)' }}>
+                                    Entry: ₹{group.entryAmount || 20} (Payout: ₹{(group.entryAmount || 20) * 2})
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <strong style={{ fontSize: '1.1rem', color: 'var(--secondary)' }}>
+                                    {group.predictedScoreA} - {group.predictedScoreB}
+                                  </strong>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                    Entry: ₹{group.entryAmount || 100} (Payout: ₹{(group.entryAmount || 100) * 3})
+                                  </div>
+                                </>
+                              )}
+                            </td>
+                            <td><span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>{group.upiId}</span></td>
+                            <td><span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--accent)' }}>{group.transactionId}</span></td>
+                            <td>
+                              {group.paymentStatus === 'pending' ? (
+                                <div className="admin-actions">
+                                  <button
+                                    className="action-btn action-btn-approve"
+                                    onClick={() => handleUpdatePayment(group._id, 'verified')}
+                                  >
+                                    <Check size={14} /> Approve
+                                  </button>
+                                  <button
+                                    className="action-btn action-btn-reject"
+                                    onClick={() => handleUpdatePayment(group._id, 'rejected')}
+                                  >
+                                    <X size={14} /> Reject
+                                  </button>
+                                </div>
+                              ) : (
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                  <span className={`badge badge-${group.paymentStatus}`}>{group.paymentStatus}</span>
+                                  <button
+                                    className="action-btn"
+                                    style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', padding: '0.2rem 0.4rem' }}
+                                    onClick={() => handleUpdatePayment(group._id, 'pending')}
+                                    title="Reset to Pending"
+                                  >
+                                    Reset
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })()
           )}
         </div>
       )}

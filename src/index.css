@@ -778,3 +778,164 @@ body {
     padding-bottom: 0.5rem;
   }
 }
+
+/* Custom prediction mode tabs, match outcome selection buttons and mobile responsive fixes */
+.home-mode-tabs {
+  display: flex;
+  width: 100%;
+  max-width: 550px;
+  margin: 0 auto 2.5rem auto;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+.home-mode-tab-btn {
+  flex: 1;
+  text-align: center;
+  border-bottom: none;
+  border-radius: 8px;
+  padding: 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  background: transparent;
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.home-mode-tab-btn.active {
+  background: var(--primary);
+  color: var(--text-dark);
+}
+
+.match-predict-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.match-predict-btn {
+  display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 0.5rem !important;
+  border-radius: 10px;
+  gap: 0.5rem;
+  transition: all 0.2s ease;
+  border-style: solid;
+}
+
+.match-predict-logo {
+  font-size: 1.5rem;
+}
+
+.match-predict-text {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+@media (max-width: 550px) {
+  .home-mode-tabs {
+    margin-bottom: 1.5rem;
+  }
+  
+  .home-mode-tab-btn {
+    padding: 0.6rem 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    gap: 0.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 1rem;
+    border-radius: 12px;
+  }
+
+  .modal-overlay {
+    padding: 0.75rem;
+  }
+
+  .modal-content {
+    padding: 1.25rem !important;
+    border-radius: 16px !important;
+  }
+
+  .predict-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .match-predict-row {
+    gap: 0.5rem;
+  }
+  
+  .match-predict-btn {
+    padding: 0.75rem 0.25rem !important;
+    gap: 0.25rem;
+  }
+  
+  .match-predict-logo {
+    font-size: 1.25rem;
+  }
+  
+  .match-predict-text {
+    font-size: 0.7rem;
+  }
+}
+
+/* Referral page custom responsive grids */
+.referral-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 769px) {
+  .referral-grid.has-code {
+    grid-template-columns: 1fr 1.2fr;
+  }
+}
+
+.referral-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+}
+
+.referral-rules-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+@media (max-width: 600px) {
+  .referral-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .referral-rules-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
