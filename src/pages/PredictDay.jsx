@@ -366,8 +366,11 @@ export default function PredictDay() {
                 <span>Max: ₹140</span>
               </div>
               <div style={{ marginTop: '0.75rem', background: 'rgba(0, 230, 118, 0.08)', border: '1px solid rgba(0, 230, 118, 0.25)', padding: '0.75rem', borderRadius: '8px', textAlign: 'center' }}>
-                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--success)' }}>
+                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--success)', display: 'block' }}>
                   Potential Payout: 2x = ₹{entryAmount * 2} if all correct! 🏆
+                </span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
+                  Note: All of your day predictions must be correct to win. No single-match payouts are given.
                 </span>
               </div>
             </div>

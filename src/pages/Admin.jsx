@@ -51,10 +51,16 @@ export default function Admin() {
   const [selectedCompletedMatchId, setSelectedCompletedMatchId] = useState('');
   const [completedMatchPredictions, setCompletedMatchPredictions] = useState([]);
   const [completedMatchPredictionsLoading, setCompletedMatchPredictionsLoading] = useState(false);
+  const [allAdminPredictions, setAllAdminPredictions] = useState([]);
 
   // Filters for payment verification board
   const [selectedFilterMatchId, setSelectedFilterMatchId] = useState('');
   const [selectedScoreCombination, setSelectedScoreCombination] = useState('');
+
+  // Day-wise Winners board states
+  const [dayWinnersPredictions, setDayWinnersPredictions] = useState([]);
+  const [dayWinnersLoading, setDayWinnersLoading] = useState(false);
+  const [selectedDayFilter, setSelectedDayFilter] = useState('All');
 
   useEffect(() => {
     if (token) {
@@ -73,6 +79,12 @@ export default function Admin() {
       fetchPredictions();
     }
   }, [paymentFilter, selectedFilterMatchId, isLoggedIn, activeTab]);
+
+  useEffect(() => {
+    if (isLoggedIn && activeTab === 'dayWinners') {
+      fetchDayWinners();
+    }
+  }, [isLoggedIn, activeTab]);
 
   useEffect(() => {
     if (selectedCompletedMatchId && isLoggedIn) {
@@ -314,6 +326,15 @@ export default function Admin() {
       setSelectedMatch(null);
       setWinnerModalMatch(data.match);
 
+      // Fetch ALL predictions to allow displaying group predictions in the winner selection modal
+      const allRes = await fetch(`${API_URL}/predictions/admin/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (allRes.ok) {
+        const allPreds = await allRes.json();
+        setAllAdminPredictions(allPreds);
+      }
+
       // Auto pre-select predictions that are verified paid
       const candidates = data.exactPredictions || [];
       setExactPredictions(candidates);
@@ -335,11 +356,12 @@ export default function Admin() {
   const handleOpenWinnerModal = async (match) => {
     try {
       setWinnerModalMatch(match);
-      // Fetch exact matching predictions for this completed match
-      const res = await fetch(`${API_URL}/predictions/admin/all?matchId=${match._id}`, {
+      // Fetch ALL predictions to allow displaying group predictions in the winner selection modal
+      const res = await fetch(`${API_URL}/predictions/admin/all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const allPreds = await res.json();
+      setAllAdminPredictions(allPreds);
 
       const sA = match.result.scoreA;
       const sB = match.result.scoreB;
@@ -349,6 +371,7 @@ export default function Admin() {
       else actualWinner = 'draw';
 
       const matchExact = allPreds.filter(p => {
+        if (!p.matchId || p.matchId._id !== match._id) return false;
         if (p.predictionType === 'winningTeam') {
           return p.isGroupEligible && p.predictedWinner === actualWinner;
         } else {
@@ -402,6 +425,98 @@ export default function Admin() {
     } finally {
       setSavingWinners(false);
     }
+  };
+
+  // --- Day Winners Board Logic ---
+  const fetchDayWinners = async () => {
+    try {
+      setDayWinnersLoading(true);
+      const res = await fetch(`${API_URL}/predictions/admin/all`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDayWinnersPredictions(data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDayWinnersLoading(false);
+    }
+  };
+
+  const handleDeclareDayWinner = async (group) => {
+    if (group.predictions.length === 0) return;
+    const representativePrediction = group.predictions[0];
+    const matchId = representativePrediction.matchId._id;
+    try {
+      const res = await fetch(`${API_URL}/matches/${matchId}/winners`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ predictionIds: [representativePrediction._id] })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to declare winner');
+      }
+      alert('Winner declared successfully!');
+      fetchDayWinners();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  const getDayWinnersGrouped = () => {
+    const winningTeamPreds = dayWinnersPredictions.filter(p => p.predictionType === 'winningTeam' && p.matchId);
+
+    const groups = {};
+    winningTeamPreds.forEach((pred) => {
+      const baseTx = pred.transactionId.split('_')[0];
+      if (!groups[baseTx]) {
+        groups[baseTx] = {
+          baseTx,
+          userName: pred.userName,
+          phoneNumber: pred.phoneNumber,
+          upiId: pred.upiId,
+          paymentStatus: pred.paymentStatus,
+          isWinner: false,
+          isGroupEligible: pred.isGroupEligible,
+          entryAmount: pred.entryAmount,
+          createdAt: pred.createdAt,
+          matches: [],
+          predictions: []
+        };
+      }
+      groups[baseTx].matches.push(pred.matchId);
+      groups[baseTx].predictions.push(pred);
+      if (pred.isWinner) {
+        groups[baseTx].isWinner = true;
+      }
+    });
+
+    const allCorrectGroups = Object.values(groups).filter(g => g.isGroupEligible);
+
+    const dayGroups = {};
+    allCorrectGroups.forEach((group) => {
+      if (group.matches.length === 0) return;
+      const firstMatch = group.matches[0];
+      const d = new Date(firstMatch.kickoffTime);
+      const dayHeader = d.toLocaleDateString('en-US', {
+        timeZone: 'Asia/Kolkata',
+        weekday: 'long',
+        month: 'short',
+        day: 'numeric'
+      });
+      if (!dayGroups[dayHeader]) {
+        dayGroups[dayHeader] = [];
+      }
+      dayGroups[dayHeader].push(group);
+    });
+
+    return dayGroups;
   };
 
   // --- Payment Verification Logic ---
@@ -546,6 +661,12 @@ export default function Admin() {
           onClick={() => setActiveTab('payments')}
         >
           Payment Verification
+        </button>
+        <button
+          className={`admin-tab ${activeTab === 'dayWinners' ? 'active' : ''}`}
+          onClick={() => setActiveTab('dayWinners')}
+        >
+          Day Winners Board
         </button>
         <button
           className={`admin-tab ${activeTab === 'referrals' ? 'active' : ''}`}
@@ -1089,6 +1210,122 @@ export default function Admin() {
         <ReferralManagementDashboard token={token} />
       )}
 
+      {activeTab === 'dayWinners' && (
+        <div className="card">
+          <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent)' }}>
+            <Award size={20} /> Day Winners Board (All Correct Predictions)
+          </h3>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
+            Below is the list of users who successfully predicted <strong>ALL</strong> winning teams for a specific day. Only verified payments are eligible to be declared as winners.
+          </p>
+
+          {dayWinnersLoading ? (
+            <div style={{ textAlign: 'center', padding: '2rem' }}>Loading day winners list...</div>
+          ) : Object.keys(getDayWinnersGrouped()).length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontStyle: 'italic' }}>
+              No day winners (all correct predictions) found yet. Make sure match scores are recorded.
+            </div>
+          ) : (
+            <div>
+              {/* Dropdown filter for Day */}
+              <div style={{ marginBottom: '1.5rem', maxWidth: '300px' }}>
+                <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.5rem' }}>Filter by Day:</label>
+                <select
+                  value={selectedDayFilter}
+                  onChange={(e) => setSelectedDayFilter(e.target.value)}
+                  className="form-input"
+                >
+                  <option value="All">All Days</option>
+                  {Object.keys(getDayWinnersGrouped()).map(day => (
+                    <option key={day} value={day}>{day}</option>
+                  ))}
+                </select>
+              </div>
+
+              {Object.keys(getDayWinnersGrouped())
+                .filter(day => selectedDayFilter === 'All' || selectedDayFilter === day)
+                .map((day) => {
+                  const groups = getDayWinnersGrouped()[day];
+                  return (
+                    <div key={day} style={{ marginBottom: '2.5rem' }}>
+                      <h4 style={{ color: 'var(--secondary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.1rem' }}>
+                        📅 {day}
+                      </h4>
+                      
+                      <div className="admin-table-container">
+                        <table className="admin-table">
+                          <thead>
+                            <tr>
+                              <th>User Details</th>
+                              <th>Match Predictions</th>
+                              <th>UPI ID & UTR</th>
+                              <th>Payment</th>
+                              <th>Potential Payout</th>
+                              <th>Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {groups.map((group) => {
+                              return (
+                                <tr key={group.baseTx}>
+                                  <td>
+                                    <strong>{group.userName}</strong>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{group.phoneNumber}</div>
+                                  </td>
+                                  <td>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.85rem' }}>
+                                      {group.predictions.map((p) => {
+                                        return (
+                                          <div key={p._id}>
+                                            ⚽ {p.matchId.teamA} vs {p.matchId.teamB}: 
+                                            <span style={{ marginLeft: '0.25rem', color: 'var(--accent)', fontWeight: 600 }}>
+                                              {p.predictedWinner === 'teamA' ? p.matchId.teamA : p.predictedWinner === 'teamB' ? p.matchId.teamB : 'Draw'}
+                                            </span>
+                                            <span style={{ color: 'var(--success)', marginLeft: '0.5rem', fontSize: '0.8rem' }}>✓</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </td>
+                                  <td>
+                                    <div>UPI: <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>{group.upiId}</span></div>
+                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>UTR: <span style={{ fontFamily: 'monospace' }}>{group.baseTx}</span></div>
+                                  </td>
+                                  <td>
+                                    <span className={`badge badge-${group.paymentStatus}`}>{group.paymentStatus}</span>
+                                  </td>
+                                  <td>
+                                    <strong style={{ color: 'var(--success)' }}>₹{group.entryAmount * 2}</strong>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Entry: ₹{group.entryAmount} (2x Payout)</div>
+                                  </td>
+                                  <td>
+                                    {group.isWinner ? (
+                                      <span className="badge badge-winner">🏆 Winner Declared</span>
+                                    ) : group.paymentStatus !== 'verified' ? (
+                                      <span style={{ fontSize: '0.85rem', color: 'var(--error)', fontStyle: 'italic' }}>Pending Payment Verification</span>
+                                    ) : (
+                                      <button
+                                        className="action-btn action-btn-approve"
+                                        onClick={() => handleDeclareDayWinner(group)}
+                                      >
+                                        🏆 Declare Winner
+                                      </button>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Record Score / Complete Match Modal */}
       {selectedMatch && (
         <div className="modal-overlay" onClick={() => setSelectedMatch(null)}>
@@ -1253,8 +1490,8 @@ export default function Admin() {
                         key={pred._id}
                         style={{
                           display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
+                          flexDirection: 'column',
+                          gap: '0.5rem',
                           padding: '0.75rem',
                           background: 'rgba(255,255,255,0.02)',
                           border: '1px solid var(--border-color)',
@@ -1262,30 +1499,70 @@ export default function Admin() {
                           opacity: isVerified ? 1 : 0.6
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                          <input
-                            type="checkbox"
-                            disabled={!isVerified}
-                            checked={selectedWinnerIds.includes(pred._id)}
-                            onChange={() => handleSelectWinnerCheckbox(pred._id)}
-                            style={{ width: '18px', height: '18px', cursor: isVerified ? 'pointer' : 'not-allowed' }}
-                          />
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
-                              {pred.userName} ({pred.phoneNumber})
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              Pick: {pickText} | UPI: {pred.upiId} | UTR: {pred.transactionId} | Paid: ₹{pred.entryAmount || 20} (Payout: ₹{(pred.entryAmount || 20) * multiplier})
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <input
+                              type="checkbox"
+                              disabled={!isVerified}
+                              checked={selectedWinnerIds.includes(pred._id)}
+                              onChange={() => handleSelectWinnerCheckbox(pred._id)}
+                              style={{ width: '18px', height: '18px', cursor: isVerified ? 'pointer' : 'not-allowed' }}
+                            />
+                            <div>
+                              <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                                {pred.userName} ({pred.phoneNumber})
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {isWinningTeam ? '🏆 Day Prediction Winner (All Correct)' : `Pick: ${pickText}`} | UPI: {pred.upiId} | UTR: {pred.transactionId.split('_')[0]} | Paid: ₹{pred.entryAmount || 20} (Payout: ₹{(pred.entryAmount || 20) * multiplier})
+                              </div>
                             </div>
                           </div>
+                          <div>
+                            {isVerified ? (
+                              <span className="badge badge-verified" style={{ fontSize: '0.7rem' }}>Paid</span>
+                            ) : (
+                              <span className="badge badge-pending" style={{ fontSize: '0.7rem' }}>Unverified Payment</span>
+                            )}
+                          </div>
                         </div>
-                        <div>
-                          {isVerified ? (
-                            <span className="badge badge-verified" style={{ fontSize: '0.7rem' }}>Paid</span>
-                          ) : (
-                            <span className="badge badge-pending" style={{ fontSize: '0.7rem' }}>Unverified Payment</span>
-                          )}
-                        </div>
+
+                        {isWinningTeam && (
+                          <div style={{ marginLeft: '2rem', padding: '0.5rem', background: 'rgba(0,0,0,0.15)', borderRadius: '6px', fontSize: '0.8rem', border: '1px dashed rgba(255,255,255,0.05)' }}>
+                            <div style={{ fontWeight: 600, color: 'var(--accent)', marginBottom: '0.25rem' }}>
+                              📋 Day Prediction Group Matches:
+                            </div>
+                            {(() => {
+                              const baseTx = pred.transactionId.split('_')[0];
+                              const group = allAdminPredictions.filter(p => p.transactionId.split('_')[0] === baseTx && p.matchId);
+                              return group.map((gp) => {
+                                const matchInfo = gp.matchId;
+                                const isCompleted = matchInfo.status === 'completed';
+                                let matchResultText = 'Scheduled';
+                                let isGpCorrect = false;
+                                if (isCompleted) {
+                                  const sA = matchInfo.result.scoreA;
+                                  const sB = matchInfo.result.scoreB;
+                                  const actWinner = sA > sB ? 'teamA' : sA < sB ? 'teamB' : 'draw';
+                                  isGpCorrect = gp.predictedWinner === actWinner;
+                                  matchResultText = `Result: ${sA}-${sB}`;
+                                }
+                                return (
+                                  <div key={gp._id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.1rem 0' }}>
+                                    <span>⚽ {matchInfo.teamA} vs {matchInfo.teamB}</span>
+                                    <span style={{ fontWeight: 500 }}>
+                                      Pick: {gp.predictedWinner === 'teamA' ? matchInfo.teamA : gp.predictedWinner === 'teamB' ? matchInfo.teamB : 'Draw'}
+                                      {isCompleted && (
+                                        <span style={{ color: isGpCorrect ? 'var(--success)' : 'var(--error)', marginLeft: '0.5rem' }}>
+                                          ({matchResultText} {isGpCorrect ? '✓' : '✗'})
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                );
+                              });
+                            })()}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

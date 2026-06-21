@@ -315,7 +315,7 @@ export default function Home() {
           <li>Enter your <strong>12-digit UPI Transaction ID (UTR / Ref No)</strong> to complete your submission.</li>
           <li>Predictions close exactly when the match starts.</li>
           <li>Once the match concludes, the administrator will verify payments and update results.</li>
-          <li>For Day Winners, predict at least 3 matches of the day. Correctly predicting the outcome of your chosen matches pays out <strong>double (2x)</strong> your entry amount, and correctly predicting the exact score pays out <strong>triple (3x)</strong>!</li>
+          <li>For Day Winners, predict at least 3 matches of the day. ALL of your predicted outcomes for that day must be correct to win (2x Payout). No single-match payouts are given for day predictions. Predict Score (3x Payout) is single-match based.</li>
         </ul>
       </div>
 
@@ -383,6 +383,24 @@ export default function Home() {
                 const isWinningTeam = group.predictionType === 'winningTeam';
                 const overallWinner = group.matches.every(m => m.isWinner);
                 const overallPayment = group.paymentStatus;
+
+                let isFailed = false;
+                group.matches.forEach((pred) => {
+                  if (pred.matchId && pred.matchId.status === 'completed') {
+                    let isCorrect = false;
+                    if (isWinningTeam) {
+                      const sA = pred.matchId.result.scoreA;
+                      const sB = pred.matchId.result.scoreB;
+                      const actualWinner = sA > sB ? 'teamA' : sA < sB ? 'teamB' : 'draw';
+                      isCorrect = pred.predictedWinner === actualWinner;
+                    } else {
+                      isCorrect = pred.predictedScoreA === pred.matchId.result.scoreA && pred.predictedScoreB === pred.matchId.result.scoreB;
+                    }
+                    if (!isCorrect) {
+                      isFailed = true;
+                    }
+                  }
+                });
                 
                 return (
                   <div key={group.transactionId} style={{ border: '1px solid var(--border-color)', borderRadius: '10px', padding: '1rem', background: 'rgba(0,0,0,0.15)', marginBottom: '1rem' }}>
@@ -454,10 +472,12 @@ export default function Home() {
                       <div>
                         {overallWinner ? (
                           <span className="badge badge-winner">🏆 Winner (₹{group.entryAmount * (isWinningTeam ? 2 : 3)})</span>
-                        ) : overallPayment === 'verified' ? (
-                          <span className="badge badge-verified">Verified</span>
+                        ) : isFailed ? (
+                          <span className="badge badge-lost">Incorrect / No Payout</span>
                         ) : overallPayment === 'rejected' ? (
                           <span className="badge badge-rejected">Rejected</span>
+                        ) : overallPayment === 'verified' ? (
+                          <span className="badge badge-verified">Verified</span>
                         ) : (
                           <span className="badge badge-pending">Pending Verification</span>
                         )}
