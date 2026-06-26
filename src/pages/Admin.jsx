@@ -91,7 +91,7 @@ export default function Admin() {
       const fetchCompletedMatchPredictions = async () => {
         try {
           setCompletedMatchPredictionsLoading(true);
-          const res = await fetch(`${API_URL}/predictions/admin/all?matchId=${selectedCompletedMatchId}`, {
+          const res = await fetch(`${API_URL}/predictions_v2/admin/all?matchId=${selectedCompletedMatchId}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           if (res.ok) {
@@ -289,7 +289,7 @@ export default function Admin() {
     setModalPredictions([]);
     setModalPredictionsLoading(true);
     try {
-      const res = await fetch(`${API_URL}/predictions/admin/all?matchId=${match._id}`, {
+      const res = await fetch(`${API_URL}/predictions_v2/admin/all?matchId=${match._id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -327,7 +327,7 @@ export default function Admin() {
       setWinnerModalMatch(data.match);
 
       // Fetch ALL predictions to allow displaying group predictions in the winner selection modal
-      const allRes = await fetch(`${API_URL}/predictions/admin/all`, {
+      const allRes = await fetch(`${API_URL}/predictions_v2/admin/all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (allRes.ok) {
@@ -357,7 +357,7 @@ export default function Admin() {
     try {
       setWinnerModalMatch(match);
       // Fetch ALL predictions to allow displaying group predictions in the winner selection modal
-      const res = await fetch(`${API_URL}/predictions/admin/all`, {
+      const res = await fetch(`${API_URL}/predictions_v2/admin/all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const allPreds = await res.json();
@@ -431,7 +431,7 @@ export default function Admin() {
   const fetchDayWinners = async () => {
     try {
       setDayWinnersLoading(true);
-      const res = await fetch(`${API_URL}/predictions/admin/all`, {
+      const res = await fetch(`${API_URL}/predictions_v2/admin/all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -527,7 +527,7 @@ export default function Admin() {
       if (searchQuery) query += `&search=${encodeURIComponent(searchQuery)}`;
       if (selectedFilterMatchId) query += `&matchId=${selectedFilterMatchId}`;
 
-      const res = await fetch(`${API_URL}/predictions/admin/all${query}`, {
+      const res = await fetch(`${API_URL}/predictions_v2/admin/all${query}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -584,7 +584,7 @@ export default function Admin() {
 
   const handleUpdatePayment = async (id, status) => {
     try {
-      const res = await fetch(`${API_URL}/predictions/${id}/payment`, {
+      const res = await fetch(`${API_URL}/predictions_v2/${id}/payment`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

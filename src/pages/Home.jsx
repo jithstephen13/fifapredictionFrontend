@@ -26,7 +26,7 @@ export default function Home() {
     try {
       setWinnersLoading(true);
       setWinnersError(null);
-      const res = await fetch(`${API_URL}/predictions/winners`);
+      const res = await fetch(`${API_URL}/predictions_v2/winners`);
       if (!res.ok) throw new Error('Failed to fetch winners list');
       const data = await res.json();
       setWinners(data);
@@ -71,7 +71,7 @@ export default function Home() {
     try {
       setTrackingLoading(true);
       setTrackingError(null);
-      const res = await fetch(`${API_URL}/predictions/my-predictions?phoneNumber=${encodeURIComponent(trackerPhone)}`);
+      const res = await fetch(`${API_URL}/predictions_v2/my-predictions?phoneNumber=${encodeURIComponent(trackerPhone)}`);
       if (!res.ok) throw new Error('Failed to fetch predictions');
       const data = await res.json();
       setUserPredictions(data);

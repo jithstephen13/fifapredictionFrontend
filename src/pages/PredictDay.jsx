@@ -147,7 +147,7 @@ export default function PredictDay() {
         predictions: predictionsList
       };
 
-      const res = await fetch(`${API_URL}/predictions`, {
+      const res = await fetch(`${API_URL}/predictions_v2`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
