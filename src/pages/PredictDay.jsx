@@ -91,6 +91,23 @@ export default function PredictDay() {
     }
   };
 
+  const calculateTotalMultiplier = () => {
+    let total = 1;
+    matches.forEach((m) => {
+      const sel = selections[m._id];
+      if (sel) {
+        if (sel === 'teamA') {
+          total *= m.multiplierTeamA !== undefined ? m.multiplierTeamA : 2;
+        } else if (sel === 'teamB') {
+          total *= m.multiplierTeamB !== undefined ? m.multiplierTeamB : 2;
+        } else if (sel === 'draw') {
+          total *= m.multiplierDraw !== undefined ? m.multiplierDraw : 2;
+        }
+      }
+    });
+    return parseFloat(total.toFixed(2));
+  };
+
   const handleNextStep = (e) => {
     e.preventDefault();
     if (!userName || !phoneNumber || !upiId) {
@@ -98,11 +115,10 @@ export default function PredictDay() {
       return;
     }
 
-    // Check that minimum 3 matches (or all if matches count < 3) are predicted
+    // Check that at least 1 match is predicted
     const predictedCount = Object.keys(selections).length;
-    const minRequired = Math.min(3, matches.length);
-    if (predictedCount < minRequired) {
-      setSubmitError(`Please select the outcome for at least ${minRequired} matches of the day.`);
+    if (predictedCount < 1) {
+      setSubmitError('Please select the outcome for at least 1 match of the day.');
       return;
     }
 
@@ -367,7 +383,7 @@ export default function PredictDay() {
               </div>
               <div style={{ marginTop: '0.75rem', background: 'rgba(0, 230, 118, 0.08)', border: '1px solid rgba(0, 230, 118, 0.25)', padding: '0.75rem', borderRadius: '8px', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--success)', display: 'block' }}>
-                  Potential Payout: 2x = ₹{entryAmount * 2} if all correct! 🏆
+                  Potential Payout: {calculateTotalMultiplier()}x = ₹{Math.round(entryAmount * calculateTotalMultiplier())} if all correct! 🏆
                 </span>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block', marginTop: '0.25rem' }}>
                   Note: All of your day predictions must be correct to win. No single-match payouts are given.

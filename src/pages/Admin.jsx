@@ -20,8 +20,94 @@ export default function Admin() {
     teamBLogo: '⚽',
     kickoffTime: '',
     winnerCount: 2,
-    prizeAmount: 100
+    prizeAmount: 100,
+    multiplierTeamA: 2,
+    multiplierTeamB: 2,
+    multiplierDraw: 2,
+    multiplierScore: 3,
+    matchCode: '',
+    venue: ''
   });
+
+  // Edit Match Details Modal State
+  const [editModalMatch, setEditModalMatch] = useState(null);
+  const [editTeamA, setEditTeamA] = useState('');
+  const [editTeamB, setEditTeamB] = useState('');
+  const [editTeamALogo, setEditTeamALogo] = useState('');
+  const [editTeamBLogo, setEditTeamBLogo] = useState('');
+  const [editKickoffTime, setEditKickoffTime] = useState('');
+  const [editPrizeAmount, setEditPrizeAmount] = useState(100);
+  const [editWinnerCount, setEditWinnerCount] = useState(2);
+  const [editMultiplierTeamA, setEditMultiplierTeamA] = useState(2);
+  const [editMultiplierTeamB, setEditMultiplierTeamB] = useState(2);
+  const [editMultiplierDraw, setEditMultiplierDraw] = useState(2);
+  const [editMultiplierScore, setEditMultiplierScore] = useState(3);
+  const [editMatchCode, setEditMatchCode] = useState('');
+  const [editVenue, setEditVenue] = useState('');
+  const [editingMatchDetails, setEditingMatchDetails] = useState(false);
+
+  const handleOpenEditModal = (match) => {
+    setEditModalMatch(match);
+    setEditTeamA(match.teamA || '');
+    setEditTeamB(match.teamB || '');
+    setEditTeamALogo(match.teamALogo || '');
+    setEditTeamBLogo(match.teamBLogo || '');
+    if (match.kickoffTime) {
+      const date = new Date(match.kickoffTime);
+      const tzOffset = date.getTimezoneOffset() * 60000;
+      const localISOTime = (new Date(date - tzOffset)).toISOString().slice(0, 16);
+      setEditKickoffTime(localISOTime);
+    } else {
+      setEditKickoffTime('');
+    }
+    setEditPrizeAmount(match.prizeAmount || 100);
+    setEditWinnerCount(match.winnerCount || 2);
+    setEditMultiplierTeamA(match.multiplierTeamA !== undefined ? match.multiplierTeamA : 2);
+    setEditMultiplierTeamB(match.multiplierTeamB !== undefined ? match.multiplierTeamB : 2);
+    setEditMultiplierDraw(match.multiplierDraw !== undefined ? match.multiplierDraw : 2);
+    setEditMultiplierScore(match.multiplierScore !== undefined ? match.multiplierScore : 3);
+    setEditMatchCode(match.matchCode || '');
+    setEditVenue(match.venue || '');
+  };
+
+  const handleEditMatchSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setEditingMatchDetails(true);
+      const res = await fetch(`${API_URL}/matches/${editModalMatch._id}`, {
+         method: 'PUT',
+         headers: {
+           'Content-Type': 'application/json',
+           Authorization: `Bearer ${token}`
+         },
+         body: JSON.stringify({
+           teamA: editTeamA,
+           teamB: editTeamB,
+           teamALogo: editTeamALogo,
+           teamBLogo: editTeamBLogo,
+           kickoffTime: editKickoffTime,
+           prizeAmount: editPrizeAmount,
+           winnerCount: editWinnerCount,
+           multiplierTeamA: editMultiplierTeamA,
+           multiplierTeamB: editMultiplierTeamB,
+           multiplierDraw: editMultiplierDraw,
+           multiplierScore: editMultiplierScore,
+           matchCode: editMatchCode,
+           venue: editVenue
+         })
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to update match');
+      }
+      setEditModalMatch(null);
+      fetchMatches();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setEditingMatchDetails(false);
+    }
+  };
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchError, setMatchError] = useState('');
 
@@ -214,40 +300,8 @@ export default function Admin() {
         body: JSON.stringify(newMatch)
       });
       const data = await res.json();
-      console.log(data.map(
-
-        ({
-
-          teamA,
-
-          teamB,
-
-          teamALogo,
-
-          teamBLogo,
-
-          kickoffTime,
-
-          status
-
-        }) => ({
-
-          teamA,
-
-          teamB,
-
-          teamALogo,
-
-          teamBLogo,
-
-          kickoffTime,
-
-          status
-
-        })
-
-      ))
       if (!res.ok) throw new Error(data.error || 'Failed to create match');
+      console.log('Match created:', data);
 
       setNewMatch({
         teamA: '',
@@ -255,8 +309,14 @@ export default function Admin() {
         teamALogo: '⚽',
         teamBLogo: '⚽',
         kickoffTime: '',
-        winnerCount: 10,
-        prizeAmount: 100
+        winnerCount: 2,
+        prizeAmount: 100,
+        multiplierTeamA: 2,
+        multiplierTeamB: 2,
+        multiplierDraw: 2,
+        multiplierScore: 3,
+        matchCode: '',
+        venue: ''
       });
       fetchMatches();
     } catch (err) {
@@ -662,12 +722,7 @@ export default function Admin() {
         >
           Payment Verification
         </button>
-        <button
-          className={`admin-tab ${activeTab === 'dayWinners' ? 'active' : ''}`}
-          onClick={() => setActiveTab('dayWinners')}
-        >
-          Day Winners Board
-        </button>
+
         <button
           className={`admin-tab ${activeTab === 'referrals' ? 'active' : ''}`}
           onClick={() => setActiveTab('referrals')}
@@ -764,6 +819,76 @@ export default function Admin() {
                 />
               </div>
 
+              <div className="form-group">
+                <label>Multiplier (Team A)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={newMatch.multiplierTeamA}
+                  onChange={(e) => setNewMatch({ ...newMatch, multiplierTeamA: parseFloat(e.target.value) })}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Multiplier (Team B)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={newMatch.multiplierTeamB}
+                  onChange={(e) => setNewMatch({ ...newMatch, multiplierTeamB: parseFloat(e.target.value) })}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Multiplier (Draw)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={newMatch.multiplierDraw}
+                  onChange={(e) => setNewMatch({ ...newMatch, multiplierDraw: parseFloat(e.target.value) })}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Multiplier (Score Prediction)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={newMatch.multiplierScore}
+                  onChange={(e) => setNewMatch({ ...newMatch, multiplierScore: parseFloat(e.target.value) })}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Match Code</label>
+                <input
+                  type="text"
+                  placeholder="e.g. R32-1"
+                  value={newMatch.matchCode}
+                  onChange={(e) => setNewMatch({ ...newMatch, matchCode: e.target.value })}
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Venue</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Boston Stadium"
+                  value={newMatch.venue}
+                  onChange={(e) => setNewMatch({ ...newMatch, venue: e.target.value })}
+                  className="form-input"
+                />
+              </div>
+
               <div className="form-group" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end' }}>
                 <button type="submit" className="btn btn-primary" style={{ width: '100%', height: '42px' }}>
                   Add Match
@@ -825,20 +950,29 @@ export default function Admin() {
                         <td>
                           <div className="admin-actions">
                             {match.status !== 'completed' ? (
-                              <button
-                                className="action-btn action-btn-approve"
-                                onClick={() => handleOpenCompleteModal(match)}
-                              >
-                                Record Result
-                              </button>
+                              <>
+                                <button
+                                  className="action-btn action-btn-approve"
+                                  onClick={() => handleOpenCompleteModal(match)}
+                                >
+                                  Record Result
+                                </button>
+                                <button
+                                  className="action-btn"
+                                  style={{ background: 'rgba(0, 230, 118, 0.15)', color: 'var(--success)' }}
+                                  onClick={() => handleOpenEditModal(match)}
+                                >
+                                  Edit Match
+                                </button>
+                              </>
                             ) : (
                               <button
-                                className="action-btn"
-                                style={{ background: 'rgba(255, 215, 0, 0.15)', color: 'var(--accent)' }}
-                                onClick={() => handleOpenWinnerModal(match)}
-                              >
-                                <Award size={14} style={{ marginRight: '0.2rem' }} /> Pick Winners
-                              </button>
+                                  className="action-btn"
+                                  style={{ background: 'rgba(255, 215, 0, 0.15)', color: 'var(--accent)' }}
+                                  onClick={() => handleOpenWinnerModal(match)}
+                                >
+                                  <Award size={14} style={{ marginRight: '0.2rem' }} /> Pick Winners
+                                </button>
                             )}
                             <button
                               className="action-btn action-btn-reject"
@@ -933,7 +1067,14 @@ export default function Admin() {
                             const pickText = isWinningTeam
                               ? (pred.predictedWinner === 'teamA' ? `${selectedMatchInfo.teamA} to Win` : pred.predictedWinner === 'teamB' ? `${selectedMatchInfo.teamB} to Win` : 'Draw')
                               : `${pred.predictedScoreA} - ${pred.predictedScoreB}`;
-                            const multiplier = isWinningTeam ? 2 : 3;
+                            let multiplier = 2;
+                            if (isWinningTeam) {
+                              if (pred.predictedWinner === 'teamA') multiplier = selectedMatchInfo.multiplierTeamA !== undefined ? selectedMatchInfo.multiplierTeamA : 2;
+                              else if (pred.predictedWinner === 'teamB') multiplier = selectedMatchInfo.multiplierTeamB !== undefined ? selectedMatchInfo.multiplierTeamB : 2;
+                              else if (pred.predictedWinner === 'draw') multiplier = selectedMatchInfo.multiplierDraw !== undefined ? selectedMatchInfo.multiplierDraw : 2;
+                            } else {
+                              multiplier = selectedMatchInfo.multiplierScore !== undefined ? selectedMatchInfo.multiplierScore : 3;
+                            }
                             return (
                               <tr key={pred._id}>
                                 <td>
@@ -943,7 +1084,7 @@ export default function Admin() {
                                 <td>
                                   <strong>{pickText}</strong>
                                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                    {isWinningTeam ? 'Winner' : 'Score'} (Payout: ₹{(pred.entryAmount || 20) * multiplier})
+                                    {isWinningTeam ? 'Winner' : 'Score'} (Payout: ₹{Math.round((pred.entryAmount || 20) * multiplier)})
                                   </div>
                                 </td>
                                 <td><span style={{ fontSize: '0.85rem' }}>{pred.upiId}</span></td>
@@ -1147,18 +1288,37 @@ export default function Admin() {
                                       </div>
                                     );
                                   })}
-                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem', paddingTop: '0.25rem', borderTop: '1px dashed rgba(255,255,255,0.05)' }}>
-                                    Entry: ₹{group.entryAmount || 20} (Payout: ₹{(group.entryAmount || 20) * 2})
-                                  </div>
+                                  {(() => {
+                                    let groupMultiplier = 1;
+                                    group.matches.forEach(p => {
+                                      if (p.matchId) {
+                                        if (p.predictedWinner === 'teamA') groupMultiplier *= (p.matchId.multiplierTeamA !== undefined ? p.matchId.multiplierTeamA : 2);
+                                        else if (p.predictedWinner === 'teamB') groupMultiplier *= (p.matchId.multiplierTeamB !== undefined ? p.matchId.multiplierTeamB : 2);
+                                        else if (p.predictedWinner === 'draw') groupMultiplier *= (p.matchId.multiplierDraw !== undefined ? p.matchId.multiplierDraw : 2);
+                                      }
+                                    });
+                                    groupMultiplier = parseFloat(groupMultiplier.toFixed(2));
+                                    return (
+                                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem', paddingTop: '0.25rem', borderTop: '1px dashed rgba(255,255,255,0.05)' }}>
+                                        Entry: ₹{group.entryAmount || 20} (Payout: ₹{Math.round((group.entryAmount || 20) * groupMultiplier)})
+                                      </div>
+                                    );
+                                  })()}
                                 </div>
                               ) : (
                                 <>
                                   <strong style={{ fontSize: '1.1rem', color: 'var(--secondary)' }}>
                                     {group.predictedScoreA} - {group.predictedScoreB}
                                   </strong>
-                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                                    Entry: ₹{group.entryAmount || 100} (Payout: ₹{(group.entryAmount || 100) * 3})
-                                  </div>
+                                  {(() => {
+                                    const matchObj = group.matches[0]?.matchId;
+                                    const scoreMultiplier = matchObj ? (matchObj.multiplierScore !== undefined ? matchObj.multiplierScore : 3) : 3;
+                                    return (
+                                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                        Entry: ₹{group.entryAmount || 100} (Payout: ₹{Math.round((group.entryAmount || 100) * scoreMultiplier)})
+                                      </div>
+                                    );
+                                  })()}
                                 </>
                               )}
                             </td>
@@ -1208,122 +1368,6 @@ export default function Admin() {
 
       {activeTab === 'referrals' && (
         <ReferralManagementDashboard token={token} />
-      )}
-
-      {activeTab === 'dayWinners' && (
-        <div className="card">
-          <h3 style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--accent)' }}>
-            <Award size={20} /> Day Winners Board (All Correct Predictions)
-          </h3>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.5rem' }}>
-            Below is the list of users who successfully predicted <strong>ALL</strong> winning teams for a specific day. Only verified payments are eligible to be declared as winners.
-          </p>
-
-          {dayWinnersLoading ? (
-            <div style={{ textAlign: 'center', padding: '2rem' }}>Loading day winners list...</div>
-          ) : Object.keys(getDayWinnersGrouped()).length === 0 ? (
-            <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem', fontStyle: 'italic' }}>
-              No day winners (all correct predictions) found yet. Make sure match scores are recorded.
-            </div>
-          ) : (
-            <div>
-              {/* Dropdown filter for Day */}
-              <div style={{ marginBottom: '1.5rem', maxWidth: '300px' }}>
-                <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'block', marginBottom: '0.5rem' }}>Filter by Day:</label>
-                <select
-                  value={selectedDayFilter}
-                  onChange={(e) => setSelectedDayFilter(e.target.value)}
-                  className="form-input"
-                >
-                  <option value="All">All Days</option>
-                  {Object.keys(getDayWinnersGrouped()).map(day => (
-                    <option key={day} value={day}>{day}</option>
-                  ))}
-                </select>
-              </div>
-
-              {Object.keys(getDayWinnersGrouped())
-                .filter(day => selectedDayFilter === 'All' || selectedDayFilter === day)
-                .map((day) => {
-                  const groups = getDayWinnersGrouped()[day];
-                  return (
-                    <div key={day} style={{ marginBottom: '2.5rem' }}>
-                      <h4 style={{ color: 'var(--secondary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '1rem', fontSize: '1.1rem' }}>
-                        📅 {day}
-                      </h4>
-                      
-                      <div className="admin-table-container">
-                        <table className="admin-table">
-                          <thead>
-                            <tr>
-                              <th>User Details</th>
-                              <th>Match Predictions</th>
-                              <th>UPI ID & UTR</th>
-                              <th>Payment</th>
-                              <th>Potential Payout</th>
-                              <th>Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {groups.map((group) => {
-                              return (
-                                <tr key={group.baseTx}>
-                                  <td>
-                                    <strong>{group.userName}</strong>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{group.phoneNumber}</div>
-                                  </td>
-                                  <td>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.85rem' }}>
-                                      {group.predictions.map((p) => {
-                                        return (
-                                          <div key={p._id}>
-                                            ⚽ {p.matchId.teamA} vs {p.matchId.teamB}: 
-                                            <span style={{ marginLeft: '0.25rem', color: 'var(--accent)', fontWeight: 600 }}>
-                                              {p.predictedWinner === 'teamA' ? p.matchId.teamA : p.predictedWinner === 'teamB' ? p.matchId.teamB : 'Draw'}
-                                            </span>
-                                            <span style={{ color: 'var(--success)', marginLeft: '0.5rem', fontSize: '0.8rem' }}>✓</span>
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </td>
-                                  <td>
-                                    <div>UPI: <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>{group.upiId}</span></div>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>UTR: <span style={{ fontFamily: 'monospace' }}>{group.baseTx}</span></div>
-                                  </td>
-                                  <td>
-                                    <span className={`badge badge-${group.paymentStatus}`}>{group.paymentStatus}</span>
-                                  </td>
-                                  <td>
-                                    <strong style={{ color: 'var(--success)' }}>₹{group.entryAmount * 2}</strong>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Entry: ₹{group.entryAmount} (2x Payout)</div>
-                                  </td>
-                                  <td>
-                                    {group.isWinner ? (
-                                      <span className="badge badge-winner">🏆 Winner Declared</span>
-                                    ) : group.paymentStatus !== 'verified' ? (
-                                      <span style={{ fontSize: '0.85rem', color: 'var(--error)', fontStyle: 'italic' }}>Pending Payment Verification</span>
-                                    ) : (
-                                      <button
-                                        className="action-btn action-btn-approve"
-                                        onClick={() => handleDeclareDayWinner(group)}
-                                      >
-                                        🏆 Declare Winner
-                                      </button>
-                                    )}
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          )}
-        </div>
       )}
 
       {/* Record Score / Complete Match Modal */}
@@ -1484,7 +1528,14 @@ export default function Admin() {
                     const pickText = isWinningTeam
                       ? (pred.predictedWinner === 'teamA' ? `${winnerModalMatch.teamA} to Win` : pred.predictedWinner === 'teamB' ? `${winnerModalMatch.teamB} to Win` : 'Draw')
                       : `${pred.predictedScoreA} - ${pred.predictedScoreB}`;
-                    const multiplier = isWinningTeam ? 2 : 3;
+                    let multiplier = 2;
+                    if (isWinningTeam) {
+                      if (pred.predictedWinner === 'teamA') multiplier = winnerModalMatch.multiplierTeamA !== undefined ? winnerModalMatch.multiplierTeamA : 2;
+                      else if (pred.predictedWinner === 'teamB') multiplier = winnerModalMatch.multiplierTeamB !== undefined ? winnerModalMatch.multiplierTeamB : 2;
+                      else if (pred.predictedWinner === 'draw') multiplier = winnerModalMatch.multiplierDraw !== undefined ? winnerModalMatch.multiplierDraw : 2;
+                    } else {
+                      multiplier = winnerModalMatch.multiplierScore !== undefined ? winnerModalMatch.multiplierScore : 3;
+                    }
                     return (
                       <div
                         key={pred._id}
@@ -1513,7 +1564,7 @@ export default function Admin() {
                                 {pred.userName} ({pred.phoneNumber})
                               </div>
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                {isWinningTeam ? '🏆 Day Prediction Winner (All Correct)' : `Pick: ${pickText}`} | UPI: {pred.upiId} | UTR: {pred.transactionId.split('_')[0]} | Paid: ₹{pred.entryAmount || 20} (Payout: ₹{(pred.entryAmount || 20) * multiplier})
+                                {isWinningTeam ? '🏆 Day Prediction Winner (All Correct)' : `Pick: ${pickText}`} | UPI: {pred.upiId} | UTR: {pred.transactionId.split('_')[0]} | Paid: ₹{pred.entryAmount || 20} (Payout: ₹{Math.round((pred.entryAmount || 20) * multiplier)})
                               </div>
                             </div>
                           </div>
@@ -1590,6 +1641,174 @@ export default function Admin() {
                 {savingWinners ? 'Saving Winners...' : 'Confirm & Save Winners'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Match Details Modal */}
+      {editModalMatch && (
+        <div className="modal-overlay" onClick={() => setEditModalMatch(null)}>
+          <div className="modal-content" style={{ maxWidth: '600px' }} onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setEditModalMatch(null)}>×</button>
+            <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--secondary)' }}>
+              Edit Match Details
+            </h3>
+
+            <form onSubmit={handleEditMatchSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem' }}>
+              <div className="form-group">
+                <label>Team A Name</label>
+                <input
+                  type="text"
+                  value={editTeamA}
+                  onChange={(e) => setEditTeamA(e.target.value)}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Team A Emoji/Logo</label>
+                <input
+                  type="text"
+                  value={editTeamALogo}
+                  onChange={(e) => setEditTeamALogo(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Team B Name</label>
+                <input
+                  type="text"
+                  value={editTeamB}
+                  onChange={(e) => setEditTeamB(e.target.value)}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Team B Emoji/Logo</label>
+                <input
+                  type="text"
+                  value={editTeamBLogo}
+                  onChange={(e) => setEditTeamBLogo(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <label>Kickoff Date & Time</label>
+                <input
+                  type="datetime-local"
+                  value={editKickoffTime}
+                  onChange={(e) => setEditKickoffTime(e.target.value)}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Prize Payout per winner (₹)</label>
+                <input
+                  type="number"
+                  value={editPrizeAmount}
+                  onChange={(e) => setEditPrizeAmount(parseInt(e.target.value))}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Number of Winners</label>
+                <input
+                  type="number"
+                  value={editWinnerCount}
+                  onChange={(e) => setEditWinnerCount(parseInt(e.target.value))}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Multiplier (Team A)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={editMultiplierTeamA}
+                  onChange={(e) => setEditMultiplierTeamA(parseFloat(e.target.value))}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Multiplier (Team B)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={editMultiplierTeamB}
+                  onChange={(e) => setEditMultiplierTeamB(parseFloat(e.target.value))}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Multiplier (Draw)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={editMultiplierDraw}
+                  onChange={(e) => setEditMultiplierDraw(parseFloat(e.target.value))}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Multiplier (Score Prediction)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={editMultiplierScore}
+                  onChange={(e) => setEditMultiplierScore(parseFloat(e.target.value))}
+                  className="form-input"
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Match Code</label>
+                <input
+                  type="text"
+                  placeholder="e.g. R32-1"
+                  value={editMatchCode}
+                  onChange={(e) => setEditMatchCode(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Venue</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Boston Stadium"
+                  value={editVenue}
+                  onChange={(e) => setEditVenue(e.target.value)}
+                  className="form-input"
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', gridColumn: 'span 2', marginTop: '1rem' }}>
+                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setEditModalMatch(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ flex: 2 }} disabled={editingMatchDetails}>
+                  {editingMatchDetails ? 'Saving...' : 'Save Match Details'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

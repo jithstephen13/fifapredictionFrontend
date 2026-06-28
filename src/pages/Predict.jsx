@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { API_URL } from '../App';
 import { QRCodeSVG } from 'qrcode.react'; // Standard package from qrcode.react
 import { ArrowLeft, Send, CheckCircle, Smartphone, CreditCard, ChevronRight, Copy } from 'lucide-react';
@@ -12,16 +12,24 @@ export default function Predict() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const [searchParams] = useSearchParams();
+  const typeParam = searchParams.get('type') || 'score';
+
   // Form State
   const [step, setStep] = useState(1); // 1: Info & Predict, 2: Pay & Submit UTR
   const [userName, setUserName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [upiId, setUpiId] = useState('');
-  const [predictionType, setPredictionType] = useState('score');
+  const [predictionType, setPredictionType] = useState(typeParam);
   const [predictedWinner, setPredictedWinner] = useState('');
   const [predictedScoreA, setPredictedScoreA] = useState('0');
   const [predictedScoreB, setPredictedScoreB] = useState('0');
-  const [entryAmount, setEntryAmount] = useState(100);
+  const [entryAmount, setEntryAmount] = useState(typeParam === 'winningTeam' ? 50 : 100);
+
+  // Adjust entry fee if predictionType changes
+  useEffect(() => {
+    setEntryAmount(predictionType === 'winningTeam' ? 50 : 100);
+  }, [predictionType]);
   const [transactionId, setTransactionId] = useState('');
   const [referralCode, setReferralCode] = useState('');
   const [showPaymentAlert, setShowPaymentAlert] = useState(false);
@@ -262,36 +270,69 @@ export default function Predict() {
               1. Predict Outcome & Enter Details
             </h3>
 
-            {/* Score Inputs */}
-            <div className="predict-score-input-container" style={{ marginBottom: '1.5rem' }}>
-              <div className="score-team-box">
-                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{match.teamA}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
-                  value={predictedScoreA}
-                  onChange={(e) => setPredictedScoreA(e.target.value)}
-                  className="score-input"
-                  required
-                />
+            {/* Predict Selection */}
+            {predictionType === 'winningTeam' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                <label style={{ fontWeight: 600 }}>Select Match Outcome:</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className={`btn ${predictedWinner === 'teamA' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ flex: 1, padding: '0.75rem' }}
+                    onClick={() => setPredictedWinner('teamA')}
+                  >
+                    {match.teamALogo} {match.teamA} ({(match.multiplierTeamA !== undefined ? match.multiplierTeamA : 2)}x)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${predictedWinner === 'draw' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ flex: 1, padding: '0.75rem' }}
+                    onClick={() => setPredictedWinner('draw')}
+                  >
+                    🤝 Draw ({(match.multiplierDraw !== undefined ? match.multiplierDraw : 2)}x)
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn ${predictedWinner === 'teamB' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ flex: 1, padding: '0.75rem' }}
+                    onClick={() => setPredictedWinner('teamB')}
+                  >
+                    {match.teamBLogo} {match.teamB} ({(match.multiplierTeamB !== undefined ? match.multiplierTeamB : 2)}x)
+                  </button>
+                </div>
               </div>
+            ) : (
+              /* Score Inputs */
+              <div className="predict-score-input-container" style={{ marginBottom: '1.5rem' }}>
+                <div className="score-team-box">
+                  <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{match.teamA}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    value={predictedScoreA}
+                    onChange={(e) => setPredictedScoreA(e.target.value)}
+                    className="score-input"
+                    required
+                  />
+                </div>
 
-              <span className="score-divider">-</span>
+                <span className="score-divider">-</span>
 
-              <div className="score-team-box">
-                <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{match.teamB}</span>
-                <input
-                  type="number"
-                  min="0"
-                  max="20"
-                  value={predictedScoreB}
-                  onChange={(e) => setPredictedScoreB(e.target.value)}
-                  className="score-input"
-                  required
-                />
+                <div className="score-team-box">
+                  <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{match.teamB}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    value={predictedScoreB}
+                    onChange={(e) => setPredictedScoreB(e.target.value)}
+                    className="score-input"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* User Details */}
             <div className="form-group">
@@ -319,7 +360,18 @@ export default function Predict() {
             </div>
 
             <div className="form-group">
-              <label>UPI ID (to send ₹{entryAmount * 3} prize if you win!)</label>
+              <label>
+                UPI ID (to send ₹{(() => {
+                  let mult = match?.multiplierScore || 3;
+                  if (predictionType === 'winningTeam') {
+                    if (predictedWinner === 'teamA') mult = match?.multiplierTeamA !== undefined ? match.multiplierTeamA : 2;
+                    else if (predictedWinner === 'teamB') mult = match?.multiplierTeamB !== undefined ? match.multiplierTeamB : 2;
+                    else if (predictedWinner === 'draw') mult = match?.multiplierDraw !== undefined ? match.multiplierDraw : 2;
+                    else mult = 2;
+                  }
+                  return Math.round(entryAmount * mult);
+                })()} prize if you win!)
+              </label>
               <input
                 type="text"
                 placeholder="e.g. name@upi or phone@paytm"
@@ -343,25 +395,34 @@ export default function Predict() {
 
             <div className="form-group">
               <label style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
-                <span>Choose Entry Amount (₹100 - ₹300)</span>
+                <span>Choose Entry Amount (₹{predictionType === 'winningTeam' ? '50 - ₹140' : '100 - ₹300'})</span>
                 <strong style={{ color: 'var(--accent)' }}>₹{entryAmount}</strong>
               </label>
               <input
                 type="range"
-                min="100"
-                max="300"
+                min={predictionType === 'winningTeam' ? '50' : '100'}
+                max={predictionType === 'winningTeam' ? '140' : '300'}
                 step="10"
                 value={entryAmount}
                 onChange={(e) => setEntryAmount(parseInt(e.target.value))}
                 style={{ width: '100%', margin: '0.5rem 0', accentColor: 'var(--primary)' }}
               />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                <span>Min: ₹100</span>
-                <span>Max: ₹300</span>
+                <span>Min: ₹{predictionType === 'winningTeam' ? '50' : '100'}</span>
+                <span>Max: ₹{predictionType === 'winningTeam' ? '140' : '300'}</span>
               </div>
               <div style={{ marginTop: '0.75rem', background: 'rgba(0, 230, 118, 0.08)', border: '1px solid rgba(0, 230, 118, 0.25)', padding: '0.75rem', borderRadius: '8px', textAlign: 'center' }}>
                 <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--success)' }}>
-                  Potential Payout: 3x = ₹{entryAmount * 3} if correct! 🏆
+                  Potential Payout: {(() => {
+                    let mult = match?.multiplierScore || 3;
+                    if (predictionType === 'winningTeam') {
+                      if (predictedWinner === 'teamA') mult = match?.multiplierTeamA !== undefined ? match.multiplierTeamA : 2;
+                      else if (predictedWinner === 'teamB') mult = match?.multiplierTeamB !== undefined ? match.multiplierTeamB : 2;
+                      else if (predictedWinner === 'draw') mult = match?.multiplierDraw !== undefined ? match.multiplierDraw : 2;
+                      else mult = 2;
+                    }
+                    return `${mult}x = ₹${Math.round(entryAmount * mult)}`;
+                  })()} if correct! 🏆
                 </span>
               </div>
             </div>

@@ -55,7 +55,16 @@ export default function Home() {
       const res = await fetch(`${API_URL}/matches/active`);
       if (!res.ok) throw new Error('Failed to fetch upcoming matches');
       const data = await res.json();
-      setMatches(data);
+
+      // Filter matches to show only those kicking off in the next 48 hours
+      const now = new Date();
+      const limit = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+      const filtered = data.filter(m => {
+        const kickoff = new Date(m.kickoffTime);
+        return kickoff > now && kickoff <= limit;
+      });
+
+      setMatches(filtered);
       setError(null);
     } catch (err) {
       setError(err.message);
@@ -137,13 +146,13 @@ export default function Home() {
           className={`home-mode-tab-btn ${activeHomeTab === 'predictDay' ? 'active' : ''}`}
           onClick={() => setActiveHomeTab('predictDay')}
         >
-          🏆 Predict Day Winners (2x Payout)
+          🏆 Predict Match Winner
         </button>
         <button
           className={`home-mode-tab-btn ${activeHomeTab === 'predictScore' ? 'active' : ''}`}
           onClick={() => setActiveHomeTab('predictScore')}
         >
-          ⚽ Predict Match Score (3x Payout)
+          ⚽ Predict Match Score
         </button>
       </div>
 
@@ -209,26 +218,6 @@ export default function Home() {
                     <Calendar size={18} /> {dayHeader}
                   </h2>
 
-                  {activeHomeTab === 'predictDay' && hasScheduledMatches && (
-                    <Link
-                      to={`/predict-day?date=${encodeURIComponent(dayHeader)}`}
-                      className="btn btn-primary"
-                      style={{
-                        background: 'linear-gradient(135deg, var(--primary), #ffa000)',
-                        color: 'var(--text-dark)',
-                        fontSize: '0.8rem',
-                        padding: '0.35rem 0.85rem',
-                        fontWeight: 700,
-                        borderRadius: '8px',
-                        boxShadow: '0 2px 8px rgba(255, 179, 0, 0.2)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.35rem'
-                      }}
-                    >
-                      🔮 Predict Winners (2x Payout)
-                    </Link>
-                  )}
                 </div>
 
                 <div className="match-grid">
@@ -258,17 +247,22 @@ export default function Home() {
                           </div>
                         </div>
 
-                        <div className="match-footer" style={{ justifyContent: activeHomeTab === 'predictDay' ? 'center' : 'space-between' }}>
+                        <div className="match-footer" style={{ justifyContent: 'space-between' }}>
                           {activeHomeTab === 'predictDay' ? (
-                            <div className="prize-pool">
-                              Prize: <span className="prize-amount">2X Payout</span> for Day Winners
-                            </div>
+                            <>
+                              <div className="prize-pool" style={{ fontSize: '0.75rem' }}>
+                                Multipliers: <span className="prize-amount">A: {(match.multiplierTeamA !== undefined ? match.multiplierTeamA : 2)}x | B: {(match.multiplierTeamB !== undefined ? match.multiplierTeamB : 2)}x | Draw: {(match.multiplierDraw !== undefined ? match.multiplierDraw : 2)}x</span>
+                              </div>
+                              <Link to={`/predict/${match._id}?type=winningTeam`} className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                                Predict Winner <ArrowRight size={16} />
+                              </Link>
+                            </>
                           ) : (
                             <>
                               <div className="prize-pool">
-                                Prize: <span className="prize-amount">3X Payout</span> for winners
+                                Prize: <span className="prize-amount">{(match.multiplierScore !== undefined ? match.multiplierScore : 3)}x Payout</span>
                               </div>
-                              <Link to={`/predict/${match._id}`} className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
+                              <Link to={`/predict/${match._id}?type=score`} className="btn btn-primary" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>
                                 Predict Score <ArrowRight size={16} />
                               </Link>
                             </>
@@ -279,28 +273,6 @@ export default function Home() {
                   })}
                 </div>
 
-                {activeHomeTab === 'predictDay' && hasScheduledMatches && (
-                  <div style={{ display: 'flex', justifyContent: 'center', marginTop: '1.5rem' }}>
-                    <Link
-                      to={`/predict-day?date=${encodeURIComponent(dayHeader)}`}
-                      className="btn btn-primary"
-                      style={{
-                        background: 'linear-gradient(135deg, var(--primary), #ffa000)',
-                        color: 'var(--text-dark)',
-                        fontSize: '1rem',
-                        padding: '0.75rem 2.25rem',
-                        fontWeight: 800,
-                        borderRadius: '12px',
-                        boxShadow: '0 4px 15px rgba(255, 179, 0, 0.3)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.5rem'
-                      }}
-                    >
-                      🔮 Predict Winners for {dayHeader} (2x Payout)
-                    </Link>
-                  </div>
-                )}
               </div>
             );
           });
@@ -315,7 +287,7 @@ export default function Home() {
           <li>Enter your <strong>12-digit UPI Transaction ID (UTR / Ref No)</strong> to complete your submission.</li>
           <li>Predictions close exactly when the match starts.</li>
           <li>Once the match concludes, the administrator will verify payments and update results.</li>
-          <li>For Day Winners, predict at least 3 matches of the day. ALL of your predicted outcomes for that day must be correct to win (2x Payout). No single-match payouts are given for day predictions. Predict Score (3x Payout) is single-match based.</li>
+          <li>For Predict Winner, select the winner or draw outcome of any upcoming match. All predictions are single-match based and pay out based on match-specific multipliers (e.g. Team A: 1.5x, Team B: 3.0x, Draw: 2.0x).</li>
         </ul>
       </div>
 
@@ -465,13 +437,45 @@ export default function Home() {
                           Entry Fee: ₹{group.entryAmount}
                         </div>
                         <div style={{ fontSize: '0.8rem', color: 'var(--success)', fontWeight: 600 }}>
-                          Potential Payout: ₹{group.entryAmount * (isWinningTeam ? 2 : 3)}
+                          Potential Payout: ₹{(() => {
+                            let multiplier = 1;
+                            if (isWinningTeam) {
+                              group.matches.forEach(p => {
+                                if (p.matchId) {
+                                  if (p.predictedWinner === 'teamA') multiplier *= (p.matchId.multiplierTeamA !== undefined ? p.matchId.multiplierTeamA : 2);
+                                  else if (p.predictedWinner === 'teamB') multiplier *= (p.matchId.multiplierTeamB !== undefined ? p.matchId.multiplierTeamB : 2);
+                                  else if (p.predictedWinner === 'draw') multiplier *= (p.matchId.multiplierDraw !== undefined ? p.matchId.multiplierDraw : 2);
+                                }
+                              });
+                            } else {
+                              const matchObj = group.matches[0]?.matchId;
+                              multiplier = matchObj ? (matchObj.multiplierScore !== undefined ? matchObj.multiplierScore : 3) : 3;
+                            }
+                            return Math.round(group.entryAmount * parseFloat(multiplier.toFixed(2)));
+                          })()}
                         </div>
                       </div>
 
                       <div>
                         {overallWinner ? (
-                          <span className="badge badge-winner">🏆 Winner (₹{group.entryAmount * (isWinningTeam ? 2 : 3)})</span>
+                          <span className="badge badge-winner">
+                            🏆 Winner (₹{(() => {
+                              let multiplier = 1;
+                              if (isWinningTeam) {
+                                group.matches.forEach(p => {
+                                  if (p.matchId) {
+                                    if (p.predictedWinner === 'teamA') multiplier *= (p.matchId.multiplierTeamA !== undefined ? p.matchId.multiplierTeamA : 2);
+                                    else if (p.predictedWinner === 'teamB') multiplier *= (p.matchId.multiplierTeamB !== undefined ? p.matchId.multiplierTeamB : 2);
+                                    else if (p.predictedWinner === 'draw') multiplier *= (p.matchId.multiplierDraw !== undefined ? p.matchId.multiplierDraw : 2);
+                                  }
+                                });
+                              } else {
+                                const matchObj = group.matches[0]?.matchId;
+                                multiplier = matchObj ? (matchObj.multiplierScore !== undefined ? matchObj.multiplierScore : 3) : 3;
+                              }
+                              return Math.round(group.entryAmount * parseFloat(multiplier.toFixed(2)));
+                            })()})
+                          </span>
                         ) : isFailed ? (
                           <span className="badge badge-lost">Incorrect / No Payout</span>
                         ) : overallPayment === 'rejected' ? (
