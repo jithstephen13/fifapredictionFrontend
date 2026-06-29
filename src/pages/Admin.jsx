@@ -1293,7 +1293,7 @@ export default function Admin() {
                                   })}
                                   {(() => {
                                     let groupMultiplier = 1;
-                                    group.matches.forEach(p => {
+                                    group.predictions.forEach(p => {
                                       if (p.matchId) {
                                         if (p.predictedWinner === 'teamA') groupMultiplier *= (p.matchId.multiplierTeamA !== undefined ? p.matchId.multiplierTeamA : 2);
                                         else if (p.predictedWinner === 'teamB') groupMultiplier *= (p.matchId.multiplierTeamB !== undefined ? p.matchId.multiplierTeamB : 2);
@@ -1314,7 +1314,7 @@ export default function Admin() {
                                     {group.predictedScoreA} - {group.predictedScoreB}
                                   </strong>
                                   {(() => {
-                                    const matchObj = group.matches[0]?.matchId;
+                                    const matchObj = group.predictions[0]?.matchId;
                                     const scoreMultiplier = matchObj ? (matchObj.multiplierScore !== undefined ? matchObj.multiplierScore : 3) : 3;
                                     return (
                                       <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
