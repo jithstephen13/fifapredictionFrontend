@@ -85,7 +85,7 @@ export default function Admin() {
            teamB: editTeamB,
            teamALogo: editTeamALogo,
            teamBLogo: editTeamBLogo,
-           kickoffTime: editKickoffTime,
+           kickoffTime: editKickoffTime ? new Date(editKickoffTime).toISOString() : '',
            prizeAmount: editPrizeAmount,
            winnerCount: editWinnerCount,
            multiplierTeamA: editMultiplierTeamA,
@@ -297,7 +297,10 @@ export default function Admin() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
-        body: JSON.stringify(newMatch)
+        body: JSON.stringify({
+          ...newMatch,
+          kickoffTime: newMatch.kickoffTime ? new Date(newMatch.kickoffTime).toISOString() : ''
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create match');
